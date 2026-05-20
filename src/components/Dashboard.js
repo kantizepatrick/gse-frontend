@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Dashboard = ({ token }) => {
@@ -6,46 +6,39 @@ const Dashboard = ({ token }) => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Dynamic API URL - works with any IP address automatically
-  const API_URL = `http://${window.location.hostname}:5000`;
-
-  const fetchData = useCallback(async () => {
-    try {
-      const [lowStockRes, transactionsRes] = await Promise.all([
-        axios.get(`${API_URL}/api/reports/low-stock`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API_URL}/api/transactions?limit=10`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-      setLowStockParts(lowStockRes.data);
-      setRecentTransactions(transactionsRes.data);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, API_URL]);
+  const API_URL = 'https://gse-backend.onrender.com';
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [lowStockRes, transactionsRes] = await Promise.all([
+          axios.get(`${API_URL}/api/reports/low-stock`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_URL}/api/transactions?limit=10`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setLowStockParts(lowStockRes.data);
+        setRecentTransactions(transactionsRes.data);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchData();
-  }, [fetchData]);
+  }, [token]);
 
   if (loading) return <div>Loading dashboard...</div>;
 
   return (
     <div>
       <h1>GSE Inventory Dashboard</h1>
-      
       <div className="alert-section">
         <h3>⚠️ Low Stock Alerts</h3>
-        {lowStockParts.length === 0 ? (
-          <p>All stock levels are good</p>
-        ) : (
+        {lowStockParts.length === 0 ? <p>All stock levels are good</p> : (
           <table className="data-table">
             <thead>
-              <tr><th>Part Number</th><th>Description</th><th>On Hand</th><th>Min Stock</th><th>Location</th></tr>
+              <tr>
+                <th>Part Number</th><th>Description</th><th>On Hand</th><th>Min Stock</th><th>Location</th>
+              </tr>
             </thead>
             <tbody>
               {lowStockParts.map(part => (
@@ -61,12 +54,13 @@ const Dashboard = ({ token }) => {
           </table>
         )}
       </div>
-
       <div className="recent-section">
         <h3>📋 Recent Transactions</h3>
         <table className="data-table">
           <thead>
-            <tr><th>Date</th><th>Part</th><th>Type</th><th>Quantity</th><th>GSE/Reference</th><th>By</th></tr>
+            <tr>
+              <th>Date</th><th>Part</th><th>Type</th><th>Quantity</th><th>GSE/Reference</th><th>By</th>
+            </tr>
           </thead>
           <tbody>
             {recentTransactions.map(tx => (

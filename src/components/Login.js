@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import logo from '../assets/logo.png';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -15,8 +14,7 @@ const Login = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
 
-  // Dynamic API URL - works with any IP address automatically
-  const API_URL = `http://${window.location.hostname}:5000`;
+  const API_URL = 'https://gse-backend.onrender.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,8 +81,8 @@ const Login = ({ onLogin }) => {
       <div className="login-box">
         <div className="logo-container">
           <img 
-            src={logo} 
-            alt="Core Aviation Services" 
+            src="/logo.svg" 
+            alt="CAS - Core Aviation Services" 
             className="login-logo"
           />
         </div>
