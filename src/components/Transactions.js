@@ -31,7 +31,13 @@ const Transactions = ({ token }) => {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>GSE/PO</th><th>Technician</th><th>By</th>
+            <th>Date</th>
+            <th>Part</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>GSE/PO</th>
+            <th>Technician</th>
+            <th>By</th>
           </tr>
         </thead>
         <tbody>
@@ -44,7 +50,7 @@ const Transactions = ({ token }) => {
               <td>{tx.gse_registration || tx.reference_number || '-'}</td>
               <td>{tx.technician_name || '-'}</td>
               <td>{tx.created_by}</td>
-            </table>
+            </tr>
           ))}
         </tbody>
       </table>
