@@ -15,7 +15,10 @@ const ReceivePart = ({ token }) => {
     manufacturer: '',
     compatible_gse: '',
     location_bin: '',
-    min_stock: 5
+    min_stock: 5,
+    contact_person: '',
+    contact_phone: '',
+    contact_email: ''
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -42,17 +45,22 @@ const ReceivePart = ({ token }) => {
   const handleAddAndReceive = async (e) => {
     e.preventDefault();
     try {
+      // First, create the new part with contact details
       await axios.post(`${API_URL}/api/parts`, {
         part_number: newPartData.part_number,
         description: newPartData.description,
         manufacturer: newPartData.manufacturer,
         compatible_gse: newPartData.compatible_gse,
         location_bin: newPartData.location_bin,
-        min_stock: newPartData.min_stock
+        min_stock: newPartData.min_stock,
+        contact_person: newPartData.contact_person,
+        contact_phone: newPartData.contact_phone,
+        contact_email: newPartData.contact_email
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Then, receive initial stock
       await axios.post(`${API_URL}/api/transactions/receive`, {
         part_number: newPartData.part_number,
         quantity: formData.quantity,
@@ -65,13 +73,17 @@ const ReceivePart = ({ token }) => {
       setMessage(`Part "${newPartData.part_number}" added and ${formData.quantity} units received!`);
       setError('');
 
+      // Reset forms
       setNewPartData({
         part_number: '',
         description: '',
         manufacturer: '',
         compatible_gse: '',
         location_bin: '',
-        min_stock: 5
+        min_stock: 5,
+        contact_person: '',
+        contact_phone: '',
+        contact_email: ''
       });
       setFormData({ part_number: '', quantity: '', reference_number: '', notes: '' });
 
@@ -145,6 +157,22 @@ const ReceivePart = ({ token }) => {
             <div className="form-group">
               <label>Minimum Stock Alert</label>
               <input type="number" value={newPartData.min_stock} onChange={(e) => setNewPartData({...newPartData, min_stock: parseInt(e.target.value)})} />
+            </div>
+
+            <hr style={{ margin: '20px 0' }} />
+
+            <h3>Contact Information (Vendor/Supplier)</h3>
+            <div className="form-group">
+              <label>Contact Person</label>
+              <input type="text" placeholder="e.g., John Smith" value={newPartData.contact_person} onChange={(e) => setNewPartData({...newPartData, contact_person: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Contact Phone</label>
+              <input type="tel" placeholder="e.g., +1 234 567 8900" value={newPartData.contact_phone} onChange={(e) => setNewPartData({...newPartData, contact_phone: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Contact Email</label>
+              <input type="email" placeholder="e.g., supplier@example.com" value={newPartData.contact_email} onChange={(e) => setNewPartData({...newPartData, contact_email: e.target.value})} />
             </div>
 
             <hr style={{ margin: '20px 0' }} />
