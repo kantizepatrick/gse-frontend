@@ -19,6 +19,7 @@ const PartsList = ({ token, user }) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [editingPart, setEditingPart] = useState(null);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const API_URL = 'https://gse-backend.onrender.com';
 
@@ -97,6 +98,9 @@ const PartsList = ({ token, user }) => {
   };
 
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
+  const toggleExpand = (id) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
 
   return (
     <div>
@@ -134,6 +138,21 @@ const PartsList = ({ token, user }) => {
             <label>Minimum Stock</label>
             <input type="number" value={newPart.min_stock} onChange={(e) => setNewPart({...newPart, min_stock: parseInt(e.target.value)})} />
           </div>
+
+          <h3>Contact Information</h3>
+          <div className="form-group">
+            <label>Contact Person</label>
+            <input type="text" placeholder="Vendor contact name" value={newPart.contact_person} onChange={(e) => setNewPart({...newPart, contact_person: e.target.value})} />
+          </div>
+          <div className="form-group">
+            <label>Contact Phone</label>
+            <input type="tel" placeholder="Phone number" value={newPart.contact_phone} onChange={(e) => setNewPart({...newPart, contact_phone: e.target.value})} />
+          </div>
+          <div className="form-group">
+            <label>Contact Email</label>
+            <input type="email" placeholder="Email address" value={newPart.contact_email} onChange={(e) => setNewPart({...newPart, contact_email: e.target.value})} />
+          </div>
+
           <button type="submit">Save Part</button>
         </form>
       )}
@@ -161,6 +180,21 @@ const PartsList = ({ token, user }) => {
             <label>Minimum Stock</label>
             <input type="number" value={editingPart.min_stock} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value)})} />
           </div>
+
+          <h3>Contact Information</h3>
+          <div className="form-group">
+            <label>Contact Person</label>
+            <input type="text" value={editingPart.contact_person || ''} onChange={(e) => setEditingPart({...editingPart, contact_person: e.target.value})} />
+          </div>
+          <div className="form-group">
+            <label>Contact Phone</label>
+            <input type="tel" value={editingPart.contact_phone || ''} onChange={(e) => setEditingPart({...editingPart, contact_phone: e.target.value})} />
+          </div>
+          <div className="form-group">
+            <label>Contact Email</label>
+            <input type="email" value={editingPart.contact_email || ''} onChange={(e) => setEditingPart({...editingPart, contact_email: e.target.value})} />
+          </div>
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" style={{ backgroundColor: '#f39c12' }}>Save Changes</button>
             <button type="button" onClick={() => setEditingPart(null)} style={{ backgroundColor: '#95a5a6' }}>Cancel</button>
@@ -182,29 +216,62 @@ const PartsList = ({ token, user }) => {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Part #</th><th>Description</th><th>Manufacturer</th><th>Location</th><th>Stock</th><th>Min</th>
+            <th>Part #</th>
+            <th>Description</th>
+            <th>Manufacturer</th>
+            <th>Location</th>
+            <th>Stock</th>
+            <th>Min</th>
+            <th>Contact</th>
             {canDelete && <th>Actions</th>}
           </tr>
         </thead>
         <tbody>
           {parts.filter(p => p.part_number.includes(search) || p.description.includes(search)).map(part => (
-            <tr key={part.id} className={part.quantity_on_hand <= part.min_stock ? 'alert-row' : ''}>
-              <td>{part.part_number}</td>
-              <td>{part.description}</td>
-              <td>{part.manufacturer || '-'}</td>
-              <td>{part.location_bin || '-'}</td>
-              <td>{part.quantity_on_hand}</td>
-              <td>{part.min_stock}</td>
-              {canDelete && (
+            <React.Fragment key={part.id}>
+              <tr className={part.quantity_on_hand <= part.min_stock ? 'alert-row' : ''}>
+                <td>{part.part_number}</td>
+                <td>{part.description}</td>
+                <td>{part.manufacturer || '-'}</td>
+                <td>{part.location_bin || '-'}</td>
+                <td style={{ fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? 'red' : 'green' }}>
+                  {part.quantity_on_hand}
+                 </td>
+                <td>{part.min_stock}</td>
                 <td>
-                  <button onClick={() => setEditingPart(part)} style={{ backgroundColor: '#f39c12', padding: '5px 10px' }}>✏️ Edit</button>
-                  <button onClick={() => handleDeletePart(part.id, part.part_number)} style={{ backgroundColor: '#e74c3c', padding: '5px 10px' }}>🗑️ Delete</button>
-                </td>
+                  {part.contact_person || part.contact_phone || part.contact_email ? (
+                    <button 
+                      onClick={() => toggleExpand(part.id)} 
+                      style={{ backgroundColor: '#3498db', padding: '5px 10px', fontSize: '11px' }}
+                    >
+                      {expandedRow === part.id ? 'Hide Contact ▲' : 'View Contact ▼'}
+                    </button>
+                  ) : (
+                    <span style={{ color: '#999', fontSize: '12px' }}>No contact</span>
+                  )}
+                 </td>
+                {canDelete && (
+                  <td>
+                    <button onClick={() => setEditingPart(part)} style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px' }}>✏️ Edit</button>
+                    <button onClick={() => handleDeletePart(part.id, part.part_number)} style={{ backgroundColor: '#e74c3c', padding: '5px 10px' }}>🗑️ Delete</button>
+                   </td>
+                )}
+               </tr>
+              {expandedRow === part.id && (
+                <tr className="contact-detail-row">
+                  <td colSpan={canDelete ? 8 : 7} style={{ backgroundColor: '#f9f9f9', padding: '15px' }}>
+                    <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                      <div><strong>Contact Person:</strong> {part.contact_person || 'N/A'}</div>
+                      <div><strong>Phone:</strong> {part.contact_phone || 'N/A'}</div>
+                      <div><strong>Email:</strong> {part.contact_email || 'N/A'}</div>
+                    </div>
+                  </td>
+                </tr>
               )}
-            </tr>
+            </React.Fragment>
           ))}
         </tbody>
-      </table>
+       </table>
     </div>
   );
 };
