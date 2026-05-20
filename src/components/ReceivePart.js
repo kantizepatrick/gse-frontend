@@ -131,7 +131,7 @@ const ReceivePart = ({ token }) => {
         </div>
       ) : (
         <div>
-          <h2>➕ Add New Part & Receive Initial Stock</h2>
+          <h2>➕ Add New Part & Receive Stock</h2>
           <form onSubmit={handleAddAndReceive} className="form-container">
             <h3>Part Information</h3>
             <div className="form-group">
@@ -177,9 +177,9 @@ const ReceivePart = ({ token }) => {
 
             <hr style={{ margin: '20px 0' }} />
 
-            <h3>Initial Stock Information</h3>
+            <h3>BUY quantity received</h3>
             <div className="form-group">
-              <label>Initial Quantity *</label>
+              <label>Quantity Received *</label>
               <input type="number" placeholder="How many units?" value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})} required />
             </div>
             <div className="form-group">
