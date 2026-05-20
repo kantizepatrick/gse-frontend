@@ -31,9 +31,12 @@ const Dashboard = ({ token }) => {
   return (
     <div>
       <h1>GSE Inventory Dashboard</h1>
+      
       <div className="alert-section">
         <h3>⚠️ Low Stock Alerts</h3>
-        {lowStockParts.length === 0 ? <p>All stock levels are good</p> : (
+        {lowStockParts.length === 0 ? (
+          <p>All stock levels are good</p>
+        ) : (
           <table className="data-table">
             <thead>
               <tr>
@@ -54,6 +57,7 @@ const Dashboard = ({ token }) => {
           </table>
         )}
       </div>
+
       <div className="recent-section">
         <h3>📋 Recent Transactions</h3>
         <table className="data-table">
