@@ -194,7 +194,7 @@ button:hover {
 }
 
 .login-logo {
-  max-width: 500px;
+  max-width: 350px;
   max-height: 180px;
   object-fit: contain;
 }
