@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import logo from '../assets/logo.png';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -80,14 +81,13 @@ const Login = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-box">
-        {/* Company Logo - Text Version */}
+        {/* Company Logo */}
         <div className="logo-container">
-          <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#2c3e50', letterSpacing: '4px' }}>
-            ✈️ GSE
-          </div>
-          <div style={{ fontSize: '14px', color: '#7f8c8d', marginTop: '5px', letterSpacing: '2px' }}>
-            Core Aviation Services
-          </div>
+          <img 
+            src={logo} 
+            alt="Core Aviation Services" 
+            className="login-logo"
+          />
         </div>
         
         <h2>GSE Spare Parts Inventory</h2>
