@@ -191,10 +191,6 @@ const Login = ({ onLogin }) => {
             </button>
           </form>
         )}
-        
-        <div className="demo-credentials">
-          <p>Demo: admin / admin123 | manager / manager123 | storekeeper / keeper123</p>
-        </div>
       </div>
     </div>
   );
