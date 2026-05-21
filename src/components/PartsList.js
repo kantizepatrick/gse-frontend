@@ -23,14 +23,18 @@ const PartsList = ({ token, user }) => {
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
-  const API_URL = `http://${window.location.hostname}:5000`;
+  const API_URL = 'https://gse-backend.onrender.com';
 
   const fetchParts = useCallback(async () => {
-    const response = await axios.get(`${API_URL}/api/parts`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setParts(response.data);
-  }, [token, API_URL]);
+    try {
+      const response = await axios.get(`${API_URL}/api/parts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setParts(response.data);
+    } catch (err) {
+      console.error('Error fetching parts:', err);
+    }
+  }, [token]);
 
   useEffect(() => {
     fetchParts();
@@ -58,7 +62,8 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError('Error: ' + (err.response?.data?.error || 'Part number may already exist'));
+      const errorMsg = err.response?.data?.error || 'Part number may already exist';
+      setError('Error: ' + errorMsg);
       setTimeout(() => setError(''), 3000);
     }
   };
@@ -103,12 +108,12 @@ const PartsList = ({ token, user }) => {
 
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
 
-  const showContactDetails = (part) => {
-    setSelectedPart(part);
-  };
-
-  const closeContactDetails = () => {
-    setSelectedPart(null);
+  const toggleContactDetails = (part) => {
+    if (selectedPart?.id === part.id) {
+      setSelectedPart(null);
+    } else {
+      setSelectedPart(part);
+    }
   };
 
   const openEditForm = (part) => {
@@ -137,8 +142,8 @@ const PartsList = ({ token, user }) => {
             <input type="text" required value={newPart.description} onChange={(e) => setNewPart({...newPart, description: e.target.value})} />
           </div>
           <div className="form-group">
-            <label>Manufacturer *</label>
-            <input type="text" required value={newPart.manufacturer} onChange={(e) => setNewPart({...newPart, manufacturer: e.target.value})} />
+            <label>Manufacturer</label>
+            <input type="text" value={newPart.manufacturer} onChange={(e) => setNewPart({...newPart, manufacturer: e.target.value})} />
           </div>
           <div className="form-group">
             <label>Compatible GSE</label>
@@ -150,7 +155,7 @@ const PartsList = ({ token, user }) => {
           </div>
           <div className="form-group">
             <label>Minimum Stock</label>
-            <input type="number" value={newPart.min_stock} onChange={(e) => setNewPart({...newPart, min_stock: parseInt(e.target.value)})} />
+            <input type="number" value={newPart.min_stock} onChange={(e) => setNewPart({...newPart, min_stock: parseInt(e.target.value) || 5})} />
           </div>
           
           <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>📞 Manufacturer Contact Details</h4>
@@ -171,14 +176,9 @@ const PartsList = ({ token, user }) => {
         </form>
       )}
 
-      {/* Edit Contact Form - Available to ALL USERS */}
       {showEditForm && editingPart && (
         <form onSubmit={handleEditPart} className="form-container">
-          <h3>Edit Contact Details for: {editingPart.part_number}</h3>
-          <p><strong>Description:</strong> {editingPart.description}</p>
-          <p><strong>Manufacturer:</strong> {editingPart.manufacturer}</p>
-          <hr />
-          <h4>📞 Contact Information</h4>
+          <h3>Edit Part: {editingPart.part_number}</h3>
           <div className="form-group">
             <label>Contact Person</label>
             <input type="text" value={editingPart.contact_person || ''} onChange={(e) => setEditingPart({...editingPart, contact_person: e.target.value})} />
@@ -197,13 +197,32 @@ const PartsList = ({ token, user }) => {
           </div>
           <div className="form-group">
             <label>Minimum Stock</label>
-            <input type="number" value={editingPart.min_stock || 5} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value)})} />
+            <input type="number" value={editingPart.min_stock || 5} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value) || 5})} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" style={{ backgroundColor: '#f39c12' }}>Save Changes</button>
             <button type="button" onClick={() => { setShowEditForm(false); setEditingPart(null); }} style={{ backgroundColor: '#95a5a6' }}>Cancel</button>
           </div>
         </form>
+      )}
+
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', maxWidth: '400px', textAlign: 'center' }}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete:</p>
+            <p><strong>{showDeleteConfirm.part_number}</strong><br />{showDeleteConfirm.description}</p>
+            <p style={{ color: 'red' }}>⚠️ This action cannot be undone!</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
+              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c' }}>Yes, Delete</button>
+              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {message && <div className="success">{message}</div>}
@@ -227,122 +246,56 @@ const PartsList = ({ token, user }) => {
             <th>Stock</th>
             <th>Min</th>
             <th>Contact</th>
-            <th>Actions</th>
+            {canDelete && <th>Actions</th>}
           </tr>
         </thead>
         <tbody>
-          {parts.filter(p => p.part_number.includes(search) || p.description.includes(search)).map(part => (
-            <tr key={part.id} className={part.quantity_on_hand <= part.min_stock ? 'alert-row' : ''}>
-              <td>{part.part_number}</td>
-              <td>{part.description}</td>
-              <td>{part.manufacturer || '-'}</td>
-              <td>{part.location_bin || '-'}</td>
-              <td>{part.quantity_on_hand}</td>
-              <td>{part.min_stock}</td>
-              <td>
-                <button 
-                  onClick={() => showContactDetails(part)}
-                  style={{ backgroundColor: '#3498db', padding: '5px 10px', marginRight: '5px' }}
-                >
-                  📞 View
-                </button>
-              </td>
-              <td>
-                <button 
-                  onClick={() => openEditForm(part)}
-                  style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px' }}
-                >
-                  ✏️ Edit
-                </button>
+          {parts.filter(p => p.part_number.toLowerCase().includes(search.toLowerCase()) || 
+            (p.description && p.description.toLowerCase().includes(search.toLowerCase()))).map(part => (
+            <React.Fragment key={part.id}>
+              <tr className={part.quantity_on_hand <= part.min_stock ? 'alert-row' : ''}>
+                <td>{part.part_number}</td>
+                <td>{part.description || '-'}</td>
+                <td>{part.manufacturer || '-'}</td>
+                <td>{part.location_bin || '-'}</td>
+                <td style={{ fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? 'red' : 'green' }}>
+                  {part.quantity_on_hand}
+                </td>
+                <td>{part.min_stock}</td>
+                <td>
+                  {(part.contact_person || part.contact_phone || part.contact_email) ? (
+                    <button 
+                      onClick={() => toggleContactDetails(part)} 
+                      style={{ backgroundColor: '#3498db', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      {selectedPart?.id === part.id ? 'Hide Contact ▲' : 'View Contact ▼'}
+                    </button>
+                  ) : (
+                    <span style={{ color: '#999', fontSize: '12px' }}>No contact</span>
+                  )}
+                </td>
                 {canDelete && (
-                  <button 
-                    onClick={() => setShowDeleteConfirm(part)}
-                    style={{ backgroundColor: '#e74c3c', padding: '5px 10px' }}
-                  >
-                    🗑️ Delete
-                  </button>
+                  <td>
+                    <button onClick={() => openEditForm(part)} style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px', cursor: 'pointer' }}>✏️ Edit</button>
+                    <button onClick={() => setShowDeleteConfirm(part)} style={{ backgroundColor: '#e74c3c', padding: '5px 10px', cursor: 'pointer' }}>🗑️ Delete</button>
+                  </td>
                 )}
-              </td>
-            </tr>
+              </tr>
+              {selectedPart?.id === part.id && (
+                <tr className="contact-detail-row">
+                  <td colSpan={canDelete ? 8 : 7} style={{ backgroundColor: '#f9f9f9', padding: '15px' }}>
+                    <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                      <div><strong>Contact Person:</strong> {part.contact_person || 'N/A'}</div>
+                      <div><strong>Phone:</strong> {part.contact_phone || 'N/A'}</div>
+                      <div><strong>Email:</strong> {part.contact_email || 'N/A'}</div>
+                    </div>
+                   </td>
+                 </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
-
-      {/* Contact Details Modal */}
-      {selectedPart && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '8px',
-            maxWidth: '450px',
-            width: '90%'
-          }}>
-            <h3>📞 Manufacturer Contact</h3>
-            <hr />
-            <p><strong>Part Number:</strong> {selectedPart.part_number}</p>
-            <p><strong>Description:</strong> {selectedPart.description}</p>
-            <p><strong>Manufacturer:</strong> {selectedPart.manufacturer || 'N/A'}</p>
-            <hr />
-            <h4>Contact Details:</h4>
-            <p><strong>👤 Contact Person:</strong> {selectedPart.contact_person || 'Not provided'}</p>
-            <p><strong>📞 Phone:</strong> {selectedPart.contact_phone ? <a href={`tel:${selectedPart.contact_phone}`}>{selectedPart.contact_phone}</a> : 'Not provided'}</p>
-            <p><strong>📧 Email:</strong> {selectedPart.contact_email ? <a href={`mailto:${selectedPart.contact_email}`}>{selectedPart.contact_email}</a> : 'Not provided'}</p>
-            <hr />
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6' }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '8px',
-            maxWidth: '400px',
-            textAlign: 'center'
-          }}>
-            <h3>Confirm Delete</h3>
-            <p>Are you sure you want to delete:</p>
-            <p><strong>{showDeleteConfirm.part_number}</strong><br/>{showDeleteConfirm.description}</p>
-            <p style={{ color: 'red' }}>⚠️ This action cannot be undone!</p>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c' }}>
-                Yes, Delete
-              </button>
-              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Users = ({ token, user }) => {
@@ -16,10 +16,13 @@ const Users = ({ token, user }) => {
     email: ''
   });
 
-  // Dynamic API URL - works with any IP address automatically
-  const API_URL = `http://${window.location.hostname}:5000`;
+  const API_URL = 'https://gse-backend.onrender.com';
 
-  const fetchUsers = useCallback(async () => {
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/users`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -28,11 +31,7 @@ const Users = ({ token, user }) => {
     } catch (err) {
       console.error('Error fetching users:', err);
     }
-  }, [token, API_URL]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -46,12 +45,12 @@ const Users = ({ token, user }) => {
       fetchUsers();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Error creating user');
+      setError('Error creating user. Username may already exist.');
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  const handleEditUser = async (e) => {
+  const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
       await axios.put(`${API_URL}/api/users/${editingUser.id}`, {
@@ -67,22 +66,22 @@ const Users = ({ token, user }) => {
       fetchUsers();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Error updating user');
+      setError('Error updating user');
       setTimeout(() => setError(''), 3000);
     }
   };
 
   const handleDeleteUser = async (userId, username) => {
-    if (window.confirm(`Delete user "${username}"?`)) {
+    if (window.confirm(`Delete user "${username}"? This cannot be undone.`)) {
       try {
         await axios.delete(`${API_URL}/api/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setMessage(`User "${username}" deleted`);
+        setMessage(`User "${username}" deleted successfully!`);
         fetchUsers();
         setTimeout(() => setMessage(''), 3000);
       } catch (err) {
-        setError(err.response?.data?.error || 'Error deleting user');
+        setError('Error deleting user');
         setTimeout(() => setError(''), 3000);
       }
     }
@@ -101,18 +100,13 @@ const Users = ({ token, user }) => {
         setMessage(`Password for "${username}" reset to: ${newPassword}`);
         setTimeout(() => setMessage(''), 4000);
       } catch (err) {
-        setError(err.response?.data?.error || 'Error resetting password');
+        setError('Error resetting password');
         setTimeout(() => setError(''), 3000);
       }
     } else if (newPassword) {
       setError('Password must be at least 4 characters');
       setTimeout(() => setError(''), 3000);
     }
-  };
-
-  const openEditForm = (user) => {
-    setEditingUser({ ...user });
-    setShowEditForm(true);
   };
 
   const getRoleBadgeColor = (role) => {
@@ -125,9 +119,9 @@ const Users = ({ token, user }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2>User Management</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60' }}>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', padding: '10px 20px' }}>
           {showAddForm ? 'Cancel' : '+ Add New User'}
         </button>
       </div>
@@ -156,15 +150,15 @@ const Users = ({ token, user }) => {
             </select>
           </div>
           <div className="form-group">
-            <label>Email (for password reset)</label>
+            <label>Email</label>
             <input type="email" placeholder="user@example.com" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} />
           </div>
-          <button type="submit">Create User</button>
+          <button type="submit" style={{ backgroundColor: '#27ae60' }}>Create User</button>
         </form>
       )}
 
       {showEditForm && editingUser && (
-        <form onSubmit={handleEditUser} className="form-container">
+        <form onSubmit={handleUpdateUser} className="form-container">
           <h3>Edit User: {editingUser.username}</h3>
           <div className="form-group">
             <label>Full Name</label>
@@ -179,7 +173,7 @@ const Users = ({ token, user }) => {
             </select>
           </div>
           <div className="form-group">
-            <label>Email (for password reset)</label>
+            <label>Email</label>
             <input type="email" placeholder="user@example.com" value={editingUser.email || ''} onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -195,11 +189,7 @@ const Users = ({ token, user }) => {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Full Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Actions</th>
+            <th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -210,21 +200,13 @@ const Users = ({ token, user }) => {
               <td>{u.email || '-'}</td>
               <td style={{ color: getRoleBadgeColor(u.role), fontWeight: 'bold' }}>{u.role.toUpperCase()}</td>
               <td>
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                  <button onClick={() => openEditForm(u)} style={{ backgroundColor: '#f39c12', padding: '5px 10px' }}>
-                    ✏️ Edit
-                  </button>
-                  {u.username !== user.username && (
-                    <>
-                      <button onClick={() => handleResetPassword(u.id, u.username)} style={{ backgroundColor: '#3498db', padding: '5px 10px' }}>
-                        🔑 Reset PW
-                      </button>
-                      <button onClick={() => handleDeleteUser(u.id, u.username)} style={{ backgroundColor: '#e74c3c', padding: '5px 10px' }}>
-                        🗑️ Delete
-                      </button>
-                    </>
-                  )}
-                </div>
+                <button onClick={() => { setEditingUser(u); setShowEditForm(true); }} style={{ backgroundColor: '#f39c12', padding: '5px 10px' }}>✏️ Edit</button>
+                {u.username !== user.username && (
+                  <>
+                    <button onClick={() => handleResetPassword(u.id, u.username)} style={{ backgroundColor: '#3498db', padding: '5px 10px' }}>🔑 Reset PW</button>
+                    <button onClick={() => handleDeleteUser(u.id, u.username)} style={{ backgroundColor: '#e74c3c', padding: '5px 10px' }}>🗑️ Delete</button>
+                  </>
+                )}
               </td>
             </tr>
           ))}
