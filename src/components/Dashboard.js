@@ -6,7 +6,8 @@ const Dashboard = ({ token }) => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = 'https://gse-backend.onrender.com';
+  // Dynamic API URL - works with any IP address automatically
+  const API_URL = `http://${window.location.hostname}:5000`;
 
   const fetchData = useCallback(async () => {
     try {
@@ -25,7 +26,7 @@ const Dashboard = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, API_URL]);
 
   useEffect(() => {
     fetchData();
@@ -44,19 +45,13 @@ const Dashboard = ({ token }) => {
         ) : (
           <table className="data-table">
             <thead>
-              <tr>
-                <th>Part Number</th>
-                <th>Description</th>
-                <th>On Hand</th>
-                <th>Min Stock</th>
-                <th>Location</th>
-              </tr>
+              <tr><th>Part Number</th><th>Description</th><th>On Hand</th><th>Min Stock</th><th>Location</th></tr>
             </thead>
             <tbody>
               {lowStockParts.map(part => (
                 <tr key={part.part_number} className="alert-row">
                   <td>{part.part_number}</td>
-                  <td>{part.description || '-'}</td>
+                  <td>{part.description}</td>
                   <td>{part.quantity_on_hand}</td>
                   <td>{part.min_stock}</td>
                   <td>{part.location_bin || '-'}</td>
@@ -71,14 +66,7 @@ const Dashboard = ({ token }) => {
         <h3>📋 Recent Transactions</h3>
         <table className="data-table">
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Part</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th>GSE/Reference</th>
-              <th>By</th>
-            </tr>
+            <tr><th>Date</th><th>Part</th><th>Type</th><th>Quantity</th><th>GSE/Reference</th><th>By</th></tr>
           </thead>
           <tbody>
             {recentTransactions.map(tx => (

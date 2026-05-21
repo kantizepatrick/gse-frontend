@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import logo from '../assets/logo.png';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -14,8 +15,8 @@ const Login = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
 
-  // Use Render backend URL
-  const API_URL = 'https://gse-backend.onrender.com';
+  // Dynamic API URL - works with any IP address automatically
+  const API_URL = `http://${window.location.hostname}:5000`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,14 +81,12 @@ const Login = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-box">
-        {/* Company Logo - Text Version (no image file needed) */}
         <div className="logo-container">
-          <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#2c3e50', letterSpacing: '4px' }}>
-            ✈️ GSE
-          </div>
-          <div style={{ fontSize: '14px', color: '#7f8c8d', marginTop: '5px', letterSpacing: '2px' }}>
-            Core Aviation Services
-          </div>
+          <img 
+            src={logo} 
+            alt="Core Aviation Services" 
+            className="login-logo"
+          />
         </div>
         
         <h2>GSE Spare Parts Inventory</h2>
@@ -191,10 +190,6 @@ const Login = ({ onLogin }) => {
             </button>
           </form>
         )}
-        
-        <div className="demo-credentials">
-          <p>Demo: admin / admin123 | manager / manager123 | storekeeper / keeper123</p>
-        </div>
       </div>
     </div>
   );
