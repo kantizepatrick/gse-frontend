@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import logo from '../assets/logo.png';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -15,7 +14,7 @@ const Login = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
 
-  const API_URL = 'https://gse-backend.onrender.com';
+  const API_URL = `http://${window.location.hostname}:5000`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,14 +79,6 @@ const Login = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div className="logo-container">
-          <img 
-            src={logo} 
-            alt="Core Aviation Services" 
-            className="login-logo"
-          />
-        </div>
-        
         <h2>GSE Spare Parts Inventory</h2>
         
         {!showForgotPassword ? (

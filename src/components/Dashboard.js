@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const Dashboard = ({ token }) => {
@@ -6,25 +6,30 @@ const Dashboard = ({ token }) => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = 'https://gse-backend.onrender.com';
+  const API_URL = `http://${window.location.hostname}:5000`;
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [lowStockRes, transactionsRes] = await Promise.all([
+        axios.get(`${API_URL}/api/reports/low-stock`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/api/transactions?limit=10`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      setLowStockParts(lowStockRes.data);
+      setRecentTransactions(transactionsRes.data);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, API_URL]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [lowStockRes, transactionsRes] = await Promise.all([
-          axios.get(`${API_URL}/api/reports/low-stock`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/api/transactions?limit=10`, { headers: { Authorization: `Bearer ${token}` } })
-        ]);
-        setLowStockParts(lowStockRes.data);
-        setRecentTransactions(transactionsRes.data);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, [token]);
+  }, [fetchData]);
 
   if (loading) return <div>Loading dashboard...</div>;
 
@@ -40,7 +45,11 @@ const Dashboard = ({ token }) => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Part Number</th><th>Description</th><th>On Hand</th><th>Min Stock</th><th>Location</th>
+                <th>Part Number</th>
+                <th>Description</th>
+                <th>On Hand</th>
+                <th>Min Stock</th>
+                <th>Location</th>
               </tr>
             </thead>
             <tbody>
@@ -63,7 +72,12 @@ const Dashboard = ({ token }) => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th><th>Part</th><th>Type</th><th>Quantity</th><th>GSE/Reference</th><th>By</th>
+              <th>Date</th>
+              <th>Part</th>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>GSE/Reference</th>
+              <th>By</th>
             </tr>
           </thead>
           <tbody>
