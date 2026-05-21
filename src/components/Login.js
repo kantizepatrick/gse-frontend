@@ -14,7 +14,8 @@ const Login = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
 
-  const API_URL = `http://${window.location.hostname}:5000`;
+  // Use Render backend URL
+  const API_URL = 'https://gse-backend.onrender.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,6 +80,16 @@ const Login = ({ onLogin }) => {
   return (
     <div className="login-container">
       <div className="login-box">
+        {/* Company Logo - Text Version (no image file needed) */}
+        <div className="logo-container">
+          <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#2c3e50', letterSpacing: '4px' }}>
+            ✈️ GSE
+          </div>
+          <div style={{ fontSize: '14px', color: '#7f8c8d', marginTop: '5px', letterSpacing: '2px' }}>
+            Core Aviation Services
+          </div>
+        </div>
+        
         <h2>GSE Spare Parts Inventory</h2>
         
         {!showForgotPassword ? (
@@ -180,6 +191,10 @@ const Login = ({ onLogin }) => {
             </button>
           </form>
         )}
+        
+        <div className="demo-credentials">
+          <p>Demo: admin / admin123 | manager / manager123 | storekeeper / keeper123</p>
+        </div>
       </div>
     </div>
   );

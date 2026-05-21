@@ -6,7 +6,7 @@ const Dashboard = ({ token }) => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = `http://${window.location.hostname}:5000`;
+  const API_URL = 'https://gse-backend.onrender.com';
 
   const fetchData = useCallback(async () => {
     try {
@@ -25,7 +25,7 @@ const Dashboard = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  }, [token, API_URL]);
+  }, [token]);
 
   useEffect(() => {
     fetchData();
@@ -56,7 +56,7 @@ const Dashboard = ({ token }) => {
               {lowStockParts.map(part => (
                 <tr key={part.part_number} className="alert-row">
                   <td>{part.part_number}</td>
-                  <td>{part.description}</td>
+                  <td>{part.description || '-'}</td>
                   <td>{part.quantity_on_hand}</td>
                   <td>{part.min_stock}</td>
                   <td>{part.location_bin || '-'}</td>
