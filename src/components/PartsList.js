@@ -287,7 +287,7 @@ const PartsList = ({ token, user }) => {
                   </button>
                 )}
               </td>
-            <tr>
+            </tr>
           ))}
         </tbody>
       </table>
