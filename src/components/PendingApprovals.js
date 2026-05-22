@@ -26,21 +26,42 @@ const PendingApprovals = ({ token, user }) => {
     }
   };
 
-  const handleAction = async (requestId, action) => {
+  const handleApprove = async (requestId) => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/requests/${requestId}/${action}`, {
+      await axios.post(`${API_URL}/api/requests/${requestId}/approve`, {
         comment: comment[requestId] || ''
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setMessage(`Request ${action}ed successfully!`);
+      setMessage('✅ Request approved successfully! Stock deducted.');
       fetchPendingRequests();
       setComment({});
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || `Error ${action}ing request`);
+      setError(err.response?.data?.error || 'Error approving request');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/api/requests/${requestId}/reject`, {
+        comment: comment[requestId] || ''
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setMessage('❌ Request rejected.');
+      fetchPendingRequests();
+      setComment({});
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error rejecting request');
       setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
@@ -60,7 +81,7 @@ const PendingApprovals = ({ token, user }) => {
     <div>
       <h2>Pending Issue Approvals</h2>
       <p style={{ color: '#666', marginBottom: '20px' }}>
-        Review and approve/reject issue requests from storekeepers. Stock will be deducted only after approval.
+        Review and approve/reject issue requests from storekeepers.
       </p>
       
       {message && (
@@ -106,13 +127,11 @@ const PendingApprovals = ({ token, user }) => {
               <tr>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Date</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Requested By</th>
-                <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Part #</th>
-                <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Description</th>
+                <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Part</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Qty</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Current Stock</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>GSE Reg</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Technician</th>
-                <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Work Order</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Notes</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Comment</th>
                 <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2' }}>Actions</th>
@@ -125,13 +144,11 @@ const PendingApprovals = ({ token, user }) => {
                     {new Date(req.created_at).toLocaleString()}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.requested_by_name}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.part_number}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.description || '-'}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.part_number} - {req.description}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{req.quantity}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.current_stock}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.gse_registration || '-'}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.technician_name || '-'}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.work_order || '-'}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{req.notes || '-'}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     <input
@@ -149,7 +166,7 @@ const PendingApprovals = ({ token, user }) => {
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     <button
-                      onClick={() => handleAction(req.id, 'approve')}
+                      onClick={() => handleApprove(req.id)}
                       disabled={loading}
                       style={{
                         backgroundColor: '#27ae60',
@@ -164,7 +181,7 @@ const PendingApprovals = ({ token, user }) => {
                       ✅ Approve
                     </button>
                     <button
-                      onClick={() => handleAction(req.id, 'reject')}
+                      onClick={() => handleReject(req.id)}
                       disabled={loading}
                       style={{
                         backgroundColor: '#e74c3c',
