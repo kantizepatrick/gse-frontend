@@ -17,13 +17,19 @@ const ChangePassword = ({ token, user, onLogout }) => {
     e.preventDefault();
     
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
+      setError('❌ New passwords do not match');
       setTimeout(() => setError(''), 3000);
       return;
     }
     
     if (newPassword.length < 4) {
-      setError('Password must be at least 4 characters');
+      setError('❌ Password must be at least 4 characters');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    if (currentPassword === newPassword) {
+      setError('❌ New password cannot be the same as current password');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -38,31 +44,18 @@ const ChangePassword = ({ token, user, onLogout }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setMessage('✓ Password changed successfully! Logging out...');
+      setMessage('✅ Password changed successfully! Logging out...');
       setError('');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
       
       setTimeout(() => {
-        setShowForm(false);
-        setMessage('');
         onLogout();
       }, 2000);
       
     } catch (err) {
-      // Always show success message even if backend returns error
-      setMessage('✓ Password changed successfully! Logging out...');
-      setError('');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      
-      setTimeout(() => {
-        setShowForm(false);
-        setMessage('');
-        onLogout();
-      }, 2000);
+      const errorMsg = err.response?.data?.error || 'Error changing password';
+      setError(`❌ ${errorMsg}`);
+      setMessage('');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -80,8 +73,11 @@ const ChangePassword = ({ token, user, onLogout }) => {
           color: 'white',
           border: 'none',
           borderRadius: '5px',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          transition: 'background-color 0.3s'
         }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#2980b9'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#3498db'}
       >
         🔑 Change Password
       </button>
@@ -89,7 +85,10 @@ const ChangePassword = ({ token, user, onLogout }) => {
       {showForm && (
         <div style={{
           position: 'fixed', 
-          top: 0, left: 0, right: 0, bottom: 0,
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.5)', 
           display: 'flex', 
           justifyContent: 'center', 
@@ -100,17 +99,18 @@ const ChangePassword = ({ token, user, onLogout }) => {
             backgroundColor: 'white', 
             padding: '30px', 
             borderRadius: '8px', 
-            width: '400px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            width: '450px',
+            maxWidth: '90%',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
           }}>
-            <h3 style={{ marginTop: 0, color: '#333' }}>Change Password</h3>
+            <h3 style={{ marginTop: 0, color: '#2c3e50' }}>Change Password</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-              User: <strong>{user?.username}</strong>
+              User: <strong style={{ color: '#3498db' }}>{user?.username}</strong> ({user?.role})
             </p>
             
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
                   Current Password *
                 </label>
                 <input 
@@ -118,18 +118,20 @@ const ChangePassword = ({ token, user, onLogout }) => {
                   value={currentPassword} 
                   onChange={(e) => setCurrentPassword(e.target.value)} 
                   required
+                  autoFocus
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: '4px',
                     border: '1px solid #ddd',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
               
               <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
                   New Password * (min 4 characters)
                 </label>
                 <input 
@@ -139,16 +141,22 @@ const ChangePassword = ({ token, user, onLogout }) => {
                   required
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: '4px',
                     border: '1px solid #ddd',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
                   }}
                 />
+                {newPassword && newPassword.length < 4 && (
+                  <p style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
+                    ⚠️ Password must be at least 4 characters
+                  </p>
+                )}
               </div>
               
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
                   Confirm New Password *
                 </label>
                 <input 
@@ -158,12 +166,18 @@ const ChangePassword = ({ token, user, onLogout }) => {
                   required
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '10px',
                     borderRadius: '4px',
                     border: '1px solid #ddd',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
                   }}
                 />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
+                    ⚠️ Passwords do not match
+                  </p>
+                )}
               </div>
               
               {message && (
@@ -205,7 +219,8 @@ const ChangePassword = ({ token, user, onLogout }) => {
                     cursor: loading ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    flex: 1
+                    flex: 1,
+                    opacity: loading ? 0.7 : 1
                   }}
                 >
                   {loading ? 'Processing...' : 'Change Password'}
@@ -234,6 +249,10 @@ const ChangePassword = ({ token, user, onLogout }) => {
                 </button>
               </div>
             </form>
+            
+            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', fontSize: '12px', color: '#999', textAlign: 'center' }}>
+              <p>Default passwords: admin123, manager123, keeper123</p>
+            </div>
           </div>
         </div>
       )}
