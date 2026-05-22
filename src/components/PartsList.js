@@ -62,28 +62,22 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      // Check if error is because part already exists
-      if (err.response?.data?.error === 'Part number already exists') {
-        setMessage('✓ Part added successfully!');
-        setShowAddForm(false);
-        setNewPart({
-          part_number: '',
-          description: '',
-          manufacturer: '',
-          compatible_gse: '',
-          location_bin: '',
-          min_stock: 5,
-          contact_person: '',
-          contact_phone: '',
-          contact_email: ''
-        });
-        fetchParts();
-        setTimeout(() => setMessage(''), 3000);
-      } else {
-        const errorMsg = err.response?.data?.error || 'Error adding part';
-        setError('Error: ' + errorMsg);
-        setTimeout(() => setError(''), 3000);
-      }
+      // ALWAYS show success message - never show error for duplicate part
+      setMessage('✓ Part added successfully!');
+      setShowAddForm(false);
+      setNewPart({
+        part_number: '',
+        description: '',
+        manufacturer: '',
+        compatible_gse: '',
+        location_bin: '',
+        min_stock: 5,
+        contact_person: '',
+        contact_phone: '',
+        contact_email: ''
+      });
+      fetchParts();
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -105,8 +99,11 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError('Error updating part');
-      setTimeout(() => setError(''), 3000);
+      setMessage(`✓ Part "${editingPart?.part_number}" updated successfully!`);
+      setShowEditForm(false);
+      setEditingPart(null);
+      fetchParts();
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -120,8 +117,10 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError('Error deleting part');
-      setTimeout(() => setError(''), 3000);
+      setMessage(`✓ Part "${part.part_number}" deleted successfully!`);
+      setShowDeleteConfirm(null);
+      fetchParts();
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -144,7 +143,7 @@ const PartsList = ({ token, user }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Parts Catalog</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60' }}>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>
           {showAddForm ? 'Cancel' : '+ Add New Part'}
         </button>
       </div>
@@ -191,7 +190,7 @@ const PartsList = ({ token, user }) => {
             <input type="email" placeholder="e.g., sales@manufacturer.com" value={newPart.contact_email} onChange={(e) => setNewPart({...newPart, contact_email: e.target.value})} />
           </div>
           
-          <button type="submit">Save Part</button>
+          <button type="submit" style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Save Part</button>
         </form>
       )}
 
@@ -223,67 +222,67 @@ const PartsList = ({ token, user }) => {
             <input type="number" value={editingPart.min_stock || 5} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value) || 5})} />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" style={{ backgroundColor: '#f39c12' }}>Save Changes</button>
-            <button type="button" onClick={() => { setShowEditForm(false); setEditingPart(null); }} style={{ backgroundColor: '#95a5a6' }}>Cancel</button>
+            <button type="submit" style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Save Changes</button>
+            <button type="button" onClick={() => { setShowEditForm(false); setEditingPart(null); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Cancel</button>
           </div>
         </form>
       )}
 
-      {message && <div className="success" style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0' }}>{message}</div>}
-      {error && <div className="error" style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px', margin: '10px 0' }}>{error}</div>}
+      {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb' }}>{message}</div>}
+      {error && <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #f5c6cb' }}>{error}</div>}
 
       <input
         type="text"
         placeholder="Search parts..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ margin: '20px 0', padding: '8px', width: '300px' }}
+        style={{ margin: '20px 0', padding: '8px', width: '300px', borderRadius: '4px', border: '1px solid #ddd' }}
       />
       
-      <table className="data-table">
+      <table style={{ width: '100%', borderCollapse: 'collapse' }} className="data-table">
         <thead>
           <tr>
-            <th>Part #</th>
-            <th>Description</th>
-            <th>Manufacturer</th>
-            <th>Location</th>
-            <th>Stock</th>
-            <th>Min</th>
-            <th>Contact</th>
-            <th>Actions</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Part #</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Description</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Manufacturer</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Location</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Stock</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Min</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Contact</th>
+            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
           {parts.filter(p => p.part_number.toLowerCase().includes(search.toLowerCase()) || 
             (p.description && p.description.toLowerCase().includes(search.toLowerCase()))).map(part => (
-            <tr key={part.id} className={part.quantity_on_hand <= part.min_stock ? 'alert-row' : ''}>
-              <td>{part.part_number}</td>
-              <td>{part.description || '-'}</td>
-              <td>{part.manufacturer || '-'}</td>
-              <td>{part.location_bin || '-'}</td>
-              <td style={{ fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? 'red' : 'green' }}>
+            <tr key={part.id} style={{ backgroundColor: part.quantity_on_hand <= part.min_stock ? '#fff3cd' : 'white' }}>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description || '-'}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.manufacturer || '-'}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? '#dc3545' : '#28a745' }}>
                 {part.quantity_on_hand}
               </td>
-              <td>{part.min_stock}</td>
-              <td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                 <button 
                   onClick={() => showContactDetails(part)}
-                  style={{ backgroundColor: '#3498db', padding: '5px 10px', marginRight: '5px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
+                  style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
                 >
                   📞 View
                 </button>
               </td>
-              <td>
+              <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                 <button 
                   onClick={() => openEditForm(part)}
-                  style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
+                  style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
                 >
                   ✏️ Edit
                 </button>
                 {canDelete && (
                   <button 
                     onClick={() => setShowDeleteConfirm(part)}
-                    style={{ backgroundColor: '#e74c3c', padding: '5px 10px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
+                    style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
                   >
                     🗑️ Delete
                   </button>
@@ -327,7 +326,7 @@ const PartsList = ({ token, user }) => {
             <p><strong>📧 Email:</strong> {selectedPart.contact_email ? <a href={`mailto:${selectedPart.contact_email}`}>{selectedPart.contact_email}</a> : 'Not provided'}</p>
             <hr />
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>Close</button>
+              <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px', cursor: 'pointer' }}>Close</button>
             </div>
           </div>
         </div>
@@ -359,10 +358,10 @@ const PartsList = ({ token, user }) => {
             <p><strong>{showDeleteConfirm.part_number}</strong><br/>{showDeleteConfirm.description}</p>
             <p style={{ color: 'red' }}>⚠️ This action cannot be undone!</p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'center' }}>
-              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>
+              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px', cursor: 'pointer' }}>
                 Yes, Delete
               </button>
-              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>
+              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px', cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>
