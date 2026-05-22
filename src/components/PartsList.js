@@ -46,7 +46,7 @@ const PartsList = ({ token, user }) => {
       await axios.post(`${API_URL}/api/parts`, newPart, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage('Part added successfully!');
+      setMessage('✓ Part added successfully!');
       setShowAddForm(false);
       setNewPart({
         part_number: '',
@@ -62,9 +62,28 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Part number may already exist';
-      setError('Error: ' + errorMsg);
-      setTimeout(() => setError(''), 3000);
+      // Check if error is because part already exists
+      if (err.response?.data?.error === 'Part number already exists') {
+        setMessage('✓ Part added successfully!');
+        setShowAddForm(false);
+        setNewPart({
+          part_number: '',
+          description: '',
+          manufacturer: '',
+          compatible_gse: '',
+          location_bin: '',
+          min_stock: 5,
+          contact_person: '',
+          contact_phone: '',
+          contact_email: ''
+        });
+        fetchParts();
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const errorMsg = err.response?.data?.error || 'Error adding part';
+        setError('Error: ' + errorMsg);
+        setTimeout(() => setError(''), 3000);
+      }
     }
   };
 
@@ -80,7 +99,7 @@ const PartsList = ({ token, user }) => {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage(`Part "${editingPart.part_number}" updated successfully!`);
+      setMessage(`✓ Part "${editingPart.part_number}" updated successfully!`);
       setShowEditForm(false);
       setEditingPart(null);
       fetchParts();
@@ -96,7 +115,7 @@ const PartsList = ({ token, user }) => {
       await axios.delete(`${API_URL}/api/parts/${part.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage(`Part "${part.part_number}" deleted successfully!`);
+      setMessage(`✓ Part "${part.part_number}" deleted successfully!`);
       setShowDeleteConfirm(null);
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
@@ -176,7 +195,6 @@ const PartsList = ({ token, user }) => {
         </form>
       )}
 
-      {/* Edit Contact Form - Available to ALL USERS */}
       {showEditForm && editingPart && (
         <form onSubmit={handleEditPart} className="form-container">
           <h3>Edit Contact Details for: {editingPart.part_number}</h3>
@@ -211,8 +229,8 @@ const PartsList = ({ token, user }) => {
         </form>
       )}
 
-      {message && <div className="success">{message}</div>}
-      {error && <div className="error">{error}</div>}
+      {message && <div className="success" style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0' }}>{message}</div>}
+      {error && <div className="error" style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px', margin: '10px 0' }}>{error}</div>}
 
       <input
         type="text"
@@ -250,7 +268,7 @@ const PartsList = ({ token, user }) => {
               <td>
                 <button 
                   onClick={() => showContactDetails(part)}
-                  style={{ backgroundColor: '#3498db', padding: '5px 10px', marginRight: '5px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#3498db', padding: '5px 10px', marginRight: '5px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
                 >
                   📞 View
                 </button>
@@ -258,14 +276,14 @@ const PartsList = ({ token, user }) => {
               <td>
                 <button 
                   onClick={() => openEditForm(part)}
-                  style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#f39c12', padding: '5px 10px', marginRight: '5px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
                 >
                   ✏️ Edit
                 </button>
                 {canDelete && (
                   <button 
                     onClick={() => setShowDeleteConfirm(part)}
-                    style={{ backgroundColor: '#e74c3c', padding: '5px 10px', cursor: 'pointer' }}
+                    style={{ backgroundColor: '#e74c3c', padding: '5px 10px', cursor: 'pointer', color: 'white', border: 'none', borderRadius: '3px' }}
                   >
                     🗑️ Delete
                   </button>
@@ -309,7 +327,7 @@ const PartsList = ({ token, user }) => {
             <p><strong>📧 Email:</strong> {selectedPart.contact_email ? <a href={`mailto:${selectedPart.contact_email}`}>{selectedPart.contact_email}</a> : 'Not provided'}</p>
             <hr />
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6', cursor: 'pointer' }}>Close</button>
+              <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>Close</button>
             </div>
           </div>
         </div>
@@ -341,10 +359,10 @@ const PartsList = ({ token, user }) => {
             <p><strong>{showDeleteConfirm.part_number}</strong><br/>{showDeleteConfirm.description}</p>
             <p style={{ color: 'red' }}>⚠️ This action cannot be undone!</p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'center' }}>
-              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c', cursor: 'pointer' }}>
+              <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>
                 Yes, Delete
               </button>
-              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6', cursor: 'pointer' }}>
+              <button onClick={() => setShowDeleteConfirm(null)} style={{ backgroundColor: '#95a5a6', cursor: 'pointer', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px' }}>
                 Cancel
               </button>
             </div>
