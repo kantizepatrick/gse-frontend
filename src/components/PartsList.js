@@ -62,7 +62,6 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      // ALWAYS show success message - never show error for duplicate part
       setMessage('✓ Part added successfully!');
       setShowAddForm(false);
       setNewPart({
@@ -242,14 +241,14 @@ const PartsList = ({ token, user }) => {
       <table style={{ width: '100%', borderCollapse: 'collapse' }} className="data-table">
         <thead>
           <tr>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Part #</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Description</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Manufacturer</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Location</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Stock</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Min</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Contact</th>
-            <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2', textAlign: 'left' }}>Actions</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Part #</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Description</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Manufacturer</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Location</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Stock</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Min</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Contact</th>
+            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -288,7 +287,7 @@ const PartsList = ({ token, user }) => {
                   </button>
                 )}
               </td>
-            </tr>
+            <tr>
           ))}
         </tbody>
       </table>
