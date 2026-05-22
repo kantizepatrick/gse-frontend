@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import PartsList from './components/PartsList';
 import ReceivePart from './components/ReceivePart';
 import IssuePart from './components/IssuePart';
+import PendingApprovals from './components/PendingApprovals';
 import Transactions from './components/Transactions';
 import Reports from './components/Reports';
 import Users from './components/Users';
@@ -12,21 +13,14 @@ import Navbar from './components/Navbar';
 import './App.css';
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [user, setUser] = useState(null);
+  const [token, setToken] = React.useState(localStorage.getItem('token'));
+  const [user, setUser] = React.useState(JSON.parse(localStorage.getItem('user') || 'null'));
 
-  useEffect(() => {
-    if (token) {
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      setUser(userData);
-    }
-  }, [token]);
-
-  const handleLogin = (newToken, userData) => {
+  const handleLogin = (newToken, newUser) => {
     localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
-    setUser(userData);
+    setUser(newUser);
   };
 
   const handleLogout = () => {
@@ -42,18 +36,22 @@ function App() {
 
   return (
     <Router>
-      <Navbar user={user} onLogout={handleLogout} />
-      <div className="container">
-        <Routes>
-          <Route path="/" element={<Dashboard token={token} />} />
-          <Route path="/parts" element={<PartsList token={token} user={user} />} />
-          <Route path="/receive" element={<ReceivePart token={token} />} />
-          <Route path="/issue" element={<IssuePart token={token} />} />
-          <Route path="/transactions" element={<Transactions token={token} />} />
-          <Route path="/reports" element={<Reports token={token} />} />
-          <Route path="/users" element={<Users token={token} user={user} />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+      <div>
+        <Navbar user={user} onLogout={handleLogout} />
+        <div style={{ padding: '20px' }}>
+          <Routes>
+            <Route path="/" element={<Dashboard token={token} user={user} />} />
+            <Route path="/dashboard" element={<Dashboard token={token} user={user} />} />
+            <Route path="/parts" element={<PartsList token={token} user={user} />} />
+            <Route path="/receive" element={<ReceivePart token={token} />} />
+            <Route path="/issue" element={<IssuePart token={token} user={user} />} />
+            <Route path="/approvals" element={<PendingApprovals token={token} user={user} />} />
+            <Route path="/transactions" element={<Transactions token={token} />} />
+            <Route path="/reports" element={<Reports token={token} />} />
+            <Route path="/users" element={<Users token={token} user={user} />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
       </div>
     </Router>
   );
