@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ChangePassword from './ChangePassword';
 
-const Navbar = ({ user, onLogout }) => {
+const Navbar = ({ user, token, onLogout }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -20,7 +21,7 @@ const Navbar = ({ user, onLogout }) => {
       alignItems: 'center',
       flexWrap: 'wrap'
     }}>
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
         <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>🏠 Dashboard</Link>
         <Link to="/parts" style={{ color: 'white', textDecoration: 'none' }}>📦 Parts Catalog</Link>
         <Link to="/receive" style={{ color: 'white', textDecoration: 'none' }}>📥 Receive Parts</Link>
@@ -34,17 +35,25 @@ const Navbar = ({ user, onLogout }) => {
           <Link to="/users" style={{ color: 'white', textDecoration: 'none' }}>👥 Users</Link>
         )}
       </div>
-      <div style={{ color: 'white' }}>
-        <span>👋 {user?.full_name || user?.username} ({user?.role})</span>
-        <button onClick={handleLogout} style={{
-          marginLeft: '15px',
-          padding: '5px 10px',
-          backgroundColor: '#e74c3c',
-          color: 'white',
-          border: 'none',
-          borderRadius: '3px',
-          cursor: 'pointer'
-        }}>Logout</button>
+      
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>👋 {user?.full_name || user?.username} ({user?.role})</span>
+          <ChangePassword token={token} user={user} onLogout={onLogout} />
+        </div>
+        <button 
+          onClick={handleLogout} 
+          style={{
+            padding: '5px 10px',
+            backgroundColor: '#e74c3c',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: 'pointer'
+          }}
+        >
+          Logout
+        </button>
       </div>
     </nav>
   );

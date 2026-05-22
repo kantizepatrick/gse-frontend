@@ -37,7 +37,7 @@ function App() {
   return (
     <Router>
       <div>
-        <Navbar user={user} onLogout={handleLogout} />
+        <Navbar user={user} token={token} onLogout={handleLogout} />
         <div style={{ padding: '20px' }}>
           <Routes>
             <Route path="/" element={<Dashboard token={token} user={user} />} />
