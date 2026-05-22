@@ -9,9 +9,18 @@ const ChangePassword = ({ token, user, onLogout }) => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDefaultPasswords, setShowDefaultPasswords] = useState(false);
 
   // Use Render backend URL
   const API_URL = 'https://gse-backend.onrender.com';
+
+  // Default passwords based on role
+  const getDefaultPassword = () => {
+    if (user?.role === 'admin') return 'admin123';
+    if (user?.role === 'manager') return 'manager123';
+    if (user?.role === 'storekeeper') return 'keeper123';
+    return '';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +37,7 @@ const ChangePassword = ({ token, user, onLogout }) => {
       return;
     }
     
-    if (currentPassword === newPassword) {
+    if (currentPassword === newPassword && currentPassword !== getDefaultPassword()) {
       setError('❌ New password cannot be the same as current password');
       setTimeout(() => setError(''), 3000);
       return;
@@ -59,6 +68,15 @@ const ChangePassword = ({ token, user, onLogout }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillDefaultPassword = () => {
+    setCurrentPassword(getDefaultPassword());
+  };
+
+  const fillSampleNewPassword = () => {
+    setNewPassword('newpassword123');
+    setConfirmPassword('newpassword123');
   };
 
   return (
@@ -99,58 +117,139 @@ const ChangePassword = ({ token, user, onLogout }) => {
             backgroundColor: 'white', 
             padding: '30px', 
             borderRadius: '8px', 
-            width: '450px',
+            width: '500px',
             maxWidth: '90%',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
             <h3 style={{ marginTop: 0, color: '#2c3e50' }}>Change Password</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
               User: <strong style={{ color: '#3498db' }}>{user?.username}</strong> ({user?.role})
             </p>
             
+            {/* Info box about default passwords */}
+            <div style={{
+              backgroundColor: '#e8f4fd',
+              padding: '12px',
+              borderRadius: '5px',
+              marginBottom: '20px',
+              borderLeft: '4px solid #3498db'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>ℹ️ Your default password is:</span>
+                <button 
+                  type="button"
+                  onClick={() => setShowDefaultPasswords(!showDefaultPasswords)}
+                  style={{
+                    backgroundColor: '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    padding: '3px 10px',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    fontSize: '11px'
+                  }}
+                >
+                  {showDefaultPasswords ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              {showDefaultPasswords && (
+                <div style={{ marginTop: '10px' }}>
+                  <p style={{ margin: '5px 0', fontSize: '13px' }}>
+                    <strong>Your default password:</strong> {getDefaultPassword()}
+                  </p>
+                  <p style={{ margin: '5px 0', fontSize: '12px', color: '#666' }}>
+                    * Admin: admin123 | Manager: manager123 | Storekeeper: keeper123
+                  </p>
+                </div>
+              )}
+            </div>
+            
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
                   Current Password *
                 </label>
-                <input 
-                  type="password" 
-                  value={currentPassword} 
-                  onChange={(e) => setCurrentPassword(e.target.value)} 
-                  required
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    border: '1px solid #ddd',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    type="password" 
+                    value={currentPassword} 
+                    onChange={(e) => setCurrentPassword(e.target.value)} 
+                    required
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '4px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={fillDefaultPassword}
+                    style={{
+                      backgroundColor: '#95a5a6',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0 15px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Use Default
+                  </button>
+                </div>
               </div>
               
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
                   New Password * (min 4 characters)
                 </label>
-                <input 
-                  type="password" 
-                  value={newPassword} 
-                  onChange={(e) => setNewPassword(e.target.value)} 
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    border: '1px solid #ddd',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    type="password" 
+                    value={newPassword} 
+                    onChange={(e) => setNewPassword(e.target.value)} 
+                    required
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '4px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={fillSampleNewPassword}
+                    style={{
+                      backgroundColor: '#95a5a6',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0 15px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Sample
+                  </button>
+                </div>
                 {newPassword && newPassword.length < 4 && (
                   <p style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
                     ⚠️ Password must be at least 4 characters
+                  </p>
+                )}
+                {newPassword && newPassword.length >= 4 && (
+                  <p style={{ fontSize: '12px', color: '#27ae60', marginTop: '5px' }}>
+                    ✓ Password strength: {newPassword.length >= 8 ? 'Strong' : newPassword.length >= 6 ? 'Medium' : 'Weak'}
                   </p>
                 )}
               </div>
@@ -176,6 +275,11 @@ const ChangePassword = ({ token, user, onLogout }) => {
                 {confirmPassword && newPassword !== confirmPassword && (
                   <p style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
                     ⚠️ Passwords do not match
+                  </p>
+                )}
+                {confirmPassword && newPassword === confirmPassword && newPassword.length >= 4 && (
+                  <p style={{ fontSize: '12px', color: '#27ae60', marginTop: '5px' }}>
+                    ✓ Passwords match
                   </p>
                 )}
               </div>
@@ -234,6 +338,7 @@ const ChangePassword = ({ token, user, onLogout }) => {
                     setCurrentPassword('');
                     setNewPassword('');
                     setConfirmPassword('');
+                    setShowDefaultPasswords(false);
                   }} 
                   style={{
                     backgroundColor: '#95a5a6',
@@ -250,8 +355,11 @@ const ChangePassword = ({ token, user, onLogout }) => {
               </div>
             </form>
             
-            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', fontSize: '12px', color: '#999', textAlign: 'center' }}>
-              <p>Default passwords: admin123, manager123, keeper123</p>
+            <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee', fontSize: '12px', color: '#999', textAlign: 'center' }}>
+              <p>💡 Tips:</p>
+              <p>• Use the "Use Default" button to fill your current default password</p>
+              <p>• Use the "Sample" button to try a sample new password</p>
+              <p>• After changing password, you'll be logged out and need to login with new password</p>
             </div>
           </div>
         </div>
