@@ -9,6 +9,7 @@ import PendingApprovals from './components/PendingApprovals';
 import Transactions from './components/Transactions';
 import Reports from './components/Reports';
 import Users from './components/Users';
+import GSEMaintenance from './components/GSEMaintenance';
 import Navbar from './components/Navbar';
 import './App.css';
 
@@ -49,6 +50,7 @@ function App() {
             <Route path="/transactions" element={<Transactions token={token} />} />
             <Route path="/reports" element={<Reports token={token} />} />
             <Route path="/users" element={<Users token={token} user={user} />} />
+            <Route path="/maintenance" element={<GSEMaintenance token={token} user={user} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>

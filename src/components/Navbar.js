@@ -15,22 +15,18 @@ const Navbar = ({ user, token, onLogout }) => {
   return (
     <nav style={{
       backgroundColor: '#2c3e50',
-      padding: '14px 25px',              // 👈 MEDIUM SIZE - INCREASED
+      padding: '14px 25px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      flexWrap: 'nowrap',
-      overflowX: 'auto',
-      whiteSpace: 'nowrap',
-      gap: '20px'                        // 👈 MEDIUM GAP
+      flexWrap: 'wrap',
+      gap: '10px'
     }}>
-      {/* Navigation Links */}
       <div style={{ 
         display: 'flex', 
-        gap: '20px',                     // 👈 MEDIUM GAP BETWEEN LINKS
+        gap: '15px', 
         alignItems: 'center',
-        flexWrap: 'nowrap',
-        fontSize: '15px'                 // 👈 MEDIUM FONT SIZE
+        flexWrap: 'wrap'
       }}>
         <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none', padding: '6px 12px' }}>🏠 Dashboard</Link>
         <Link to="/parts" style={{ color: 'white', textDecoration: 'none', padding: '6px 12px' }}>📦 Parts</Link>
@@ -39,6 +35,7 @@ const Navbar = ({ user, token, onLogout }) => {
         {isApprover && (
           <Link to="/approvals" style={{ color: '#f39c12', textDecoration: 'none', fontWeight: 'bold', padding: '6px 12px' }}>⏳ Approvals</Link>
         )}
+        <Link to="/maintenance" style={{ color: 'white', textDecoration: 'none', padding: '6px 12px' }}>🔧 Maintenance</Link>
         <Link to="/transactions" style={{ color: 'white', textDecoration: 'none', padding: '6px 12px' }}>📜 History</Link>
         <Link to="/reports" style={{ color: 'white', textDecoration: 'none', padding: '6px 12px' }}>📊 Reports</Link>
         {user?.role === 'admin' && (
@@ -46,28 +43,25 @@ const Navbar = ({ user, token, onLogout }) => {
         )}
       </div>
       
-      {/* Right side - User info and buttons */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
-        gap: '15px',
-        fontSize: '14px'
+        gap: '15px'
       }}>
-        <div style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '14px' }}>👋 {user?.username} ({user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Manager' : 'Storekeeper'})</span>
+        <div style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>👋 {user?.username} ({user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Mgr' : 'SK'})</span>
           <ChangePassword token={token} user={user} onLogout={onLogout} />
         </div>
         <button 
           onClick={handleLogout} 
           style={{
-            padding: '7px 14px',          // 👈 MEDIUM BUTTON SIZE
+            padding: '6px 12px',
             backgroundColor: '#e74c3c',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 'bold'
+            fontSize: '13px'
           }}
         >
           Logout
