@@ -15,191 +15,136 @@ const Dashboard = ({ token, user }) => {
 
   const API_URL = 'https://gse-backend.onrender.com';
 
-  // Demo data for preview
-  const demoLowStock = [
-    { part_number: 'BRK-001', description: 'Brake Pad', quantity_on_hand: 2, min_stock: 10, location_bin: 'A-12' },
-    { part_number: 'FLT-003', description: 'Oil Filter', quantity_on_hand: 1, min_stock: 8, location_bin: 'B-05' },
-    { part_number: 'BAT-007', description: 'Battery', quantity_on_hand: 3, min_stock: 15, location_bin: 'C-08' }
-  ];
-
-  const demoMaintenanceAlerts = [
-    { 
-      id: 1, 
-      equipment_name: 'Tow Tractor #5', 
-      equipment_type: 'Tow Tractor', 
-      maintenance_type: 'hour', 
-      status: 'overdue', 
-      last_service: '1,250 hrs',
-      interval: '250 hrs',
-      next_due: '1,500 hrs',
-      remaining: '25 hrs overdue'
-    },
-    { 
-      id: 2, 
-      equipment_name: 'GPU Unit #2', 
-      equipment_type: 'GPU', 
-      maintenance_type: 'hour', 
-      status: 'due_soon', 
-      last_service: '800 hrs',
-      interval: '200 hrs',
-      next_due: '1,000 hrs',
-      remaining: '45 hrs remaining'
-    },
-    { 
-      id: 3, 
-      equipment_name: 'Battery Charger #3', 
-      equipment_type: 'Charger', 
-      maintenance_type: 'month', 
-      status: 'overdue', 
-      last_service: 'Jan 15, 2025',
-      interval: '6 months',
-      next_due: 'Jul 15, 2025',
-      remaining: '5 days overdue'
-    },
-    { 
-      id: 4, 
-      equipment_name: 'Hydraulic Test Stand', 
-      equipment_type: 'Test Equipment', 
-      maintenance_type: 'month', 
-      status: 'due_soon', 
-      last_service: 'Dec 1, 2024',
-      interval: '3 months',
-      next_due: 'Mar 1, 2025',
-      remaining: '12 days remaining'
-    },
-    { 
-      id: 5, 
-      equipment_name: 'Fire Extinguisher #1', 
-      equipment_type: 'Safety', 
-      maintenance_type: 'year', 
-      status: 'overdue', 
-      last_service: '2023',
-      interval: '1 year',
-      next_due: '2024',
-      remaining: '2 years overdue'
-    },
-    { 
-      id: 6, 
-      equipment_name: 'Annual Lift Inspection', 
-      equipment_type: 'Lifting Equipment', 
-      maintenance_type: 'year', 
-      status: 'due_soon', 
-      last_service: '2024',
-      interval: '1 year',
-      next_due: '2025',
-      remaining: '0 years remaining'
-    }
-  ];
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
+      
       // Fetch low stock parts
-      let lowStockData = [];
-      try {
-        const lowStockRes = await axios.get(`${API_URL}/api/reports/low-stock`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        lowStockData = lowStockRes.data;
-      } catch (err) {
-        lowStockData = demoLowStock;
-      }
-      setLowStockParts(lowStockData.length > 0 ? lowStockData : demoLowStock);
+      const lowStockRes = await axios.get(`${API_URL}/api/reports/low-stock`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setLowStockParts(lowStockRes.data || []);
 
       // Fetch maintenance data
-      let maintenanceData = [];
-      try {
-        const maintenanceRes = await axios.get(`${API_URL}/api/gse-maintenance`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        maintenanceData = maintenanceRes.data.equipment || [];
-      } catch (err) {
-        maintenanceData = demoMaintenanceAlerts;
-      }
+      const maintenanceRes = await axios.get(`${API_URL}/api/gse-maintenance`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const allMaintenance = maintenanceRes.data.equipment || [];
+      
+      // Filter for overdue and due soon ONLY
+      const overdueAndDueSoon = allMaintenance.filter(item => 
+        item.status === 'overdue' || item.status === 'due_soon'
+      );
       
       // Format maintenance alerts
-      let alerts = maintenanceData.filter(item => 
-        item.status === 'overdue' || item.status === 'due_soon'
-      ).map(item => ({
+      const formattedAlerts = overdueAndDueSoon.map(item => ({
         id: item.id,
         equipment_name: item.equipment_name,
         equipment_type: item.equipment_type || '-',
         maintenance_type: item.maintenance_type,
         status: item.status,
-        last_service: item.last_service_value ? `${item.last_service_value} hrs` : 
-                     item.last_service_date ? new Date(item.last_service_date).toLocaleDateString() : 
-                     item.last_service_year || 'Not recorded',
-        interval: item.interval_value ? `${item.interval_value} ${item.maintenance_type === 'hour' ? 'hrs' : item.maintenance_type === 'month' ? 'months' : 'yrs'}` : '-',
-        next_due: item.next_due_value ? `${item.next_due_value} hrs` :
-                  item.next_service_date ? new Date(item.next_service_date).toLocaleDateString() :
-                  item.next_service_year || 'Calculating...',
+        last_service: getLastServiceDisplay(item),
+        interval: getIntervalDisplay(item),
+        next_due: getNextDueDisplay(item),
         remaining: getRemainingText(item)
       }));
       
-      if (alerts.length === 0) {
-        alerts = demoMaintenanceAlerts;
-      }
+      // Sort by urgency (overdue first, then by remaining value)
+      const sortedAlerts = [...formattedAlerts].sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (a.status !== 'overdue' && b.status === 'overdue') return 1;
+        return 0;
+      });
       
-      setMaintenanceAlerts(alerts);
+      setMaintenanceAlerts(sortedAlerts);
 
-      // Fetch counts
-      let totalParts = 0;
-      try {
-        const partsRes = await axios.get(`${API_URL}/api/parts`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        totalParts = partsRes.data.length;
-      } catch (err) {
-        totalParts = 25;
-      }
+      // Fetch parts count
+      const partsRes = await axios.get(`${API_URL}/api/parts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
+      // Fetch pending approvals
       let pendingCount = 0;
       if (user?.role === 'admin' || user?.role === 'manager') {
-        try {
-          const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          pendingCount = pendingRes.data.requests?.length || 0;
-        } catch (err) {
-          pendingCount = 2;
-        }
+        const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        pendingCount = pendingRes.data.requests?.length || 0;
       }
 
       setStats({
-        totalParts: totalParts,
-        totalEquipment: maintenanceData.length > 0 ? maintenanceData.length : 12,
-        lowStockCount: lowStockData.length > 0 ? lowStockData.length : demoLowStock.length,
-        maintenanceAlertCount: alerts.length,
+        totalParts: partsRes.data.length,
+        totalEquipment: allMaintenance.length,
+        lowStockCount: lowStockRes.data?.length || 0,
+        maintenanceAlertCount: sortedAlerts.length,
         pendingApprovals: pendingCount
       });
 
       setLoading(false);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setLowStockParts(demoLowStock);
-      setMaintenanceAlerts(demoMaintenanceAlerts);
-      setStats({
-        totalParts: 25,
-        totalEquipment: 12,
-        lowStockCount: demoLowStock.length,
-        maintenanceAlertCount: demoMaintenanceAlerts.length,
-        pendingApprovals: 2
-      });
       setLoading(false);
     }
   };
 
+  const getLastServiceDisplay = (item) => {
+    if (item.last_service_value) {
+      return `${item.last_service_value} hrs`;
+    }
+    if (item.last_service_date) {
+      const date = new Date(item.last_service_date);
+      return date.toLocaleDateString();
+    }
+    if (item.last_service_year) {
+      return item.last_service_year;
+    }
+    return 'Not recorded';
+  };
+
+  const getIntervalDisplay = (item) => {
+    if (item.maintenance_type === 'hour') {
+      return `${item.service_interval_hours || item.interval_value || 250} hrs`;
+    } else if (item.maintenance_type === 'month') {
+      return `${item.service_interval_months || item.interval_value || 6} months`;
+    } else if (item.maintenance_type === 'year') {
+      return `${item.service_interval_years || item.interval_value || 1} year(s)`;
+    }
+    return '-';
+  };
+
+  const getNextDueDisplay = (item) => {
+    if (item.maintenance_type === 'hour') {
+      const lastHours = item.last_service_value || 0;
+      const interval = item.service_interval_hours || item.interval_value || 250;
+      const nextDue = lastHours + interval;
+      return `${nextDue} hrs`;
+    } else if (item.maintenance_type === 'month') {
+      if (item.next_service_date) {
+        const date = new Date(item.next_service_date);
+        return date.toLocaleDateString();
+      }
+      return 'Calculating...';
+    } else if (item.maintenance_type === 'year') {
+      return item.next_service_year || 'Calculating...';
+    }
+    return '-';
+  };
+
   const getRemainingText = (item) => {
     const isOverdue = item.status === 'overdue';
-    const remaining = item.remaining_value || item.hours_remaining || item.days_remaining || item.years_remaining || 0;
-    const absRemaining = Math.abs(remaining);
     
     if (item.maintenance_type === 'hour') {
+      const remaining = item.hours_remaining || item.remaining_value || 0;
+      const absRemaining = Math.abs(remaining);
       return isOverdue ? `${absRemaining} hrs overdue` : `${absRemaining} hrs remaining`;
     } else if (item.maintenance_type === 'month') {
+      const remaining = item.days_remaining || item.remaining_value || 0;
+      const absRemaining = Math.abs(remaining);
       if (absRemaining >= 30) {
         const months = Math.floor(absRemaining / 30);
         const days = absRemaining % 30;
@@ -210,6 +155,8 @@ const Dashboard = ({ token, user }) => {
       }
       return isOverdue ? `${absRemaining} days overdue` : `${absRemaining} days remaining`;
     } else if (item.maintenance_type === 'year') {
+      const remaining = item.years_remaining || item.remaining_value || 0;
+      const absRemaining = Math.abs(remaining);
       return isOverdue ? `${absRemaining} year(s) overdue` : `${absRemaining} year(s) remaining`;
     }
     return isOverdue ? 'Overdue' : 'Upcoming';
@@ -424,11 +371,6 @@ const Dashboard = ({ token, user }) => {
             </table>
           </div>
         )}
-      </div>
-      
-      {/* Info Note */}
-      <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#e8f4fd', borderRadius: '5px', fontSize: '12px', color: '#666', textAlign: 'center' }}>
-        ℹ️ Dashboard shows demo data for preview. Connect to backend for live data.
       </div>
     </div>
   );
