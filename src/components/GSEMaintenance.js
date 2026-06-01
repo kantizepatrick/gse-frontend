@@ -39,13 +39,10 @@ const GSEMaintenance = ({ token, user }) => {
 
   useEffect(() => {
     fetchEquipment();
-    
-    // Auto-refresh every minute to show updated calculations
     const interval = setInterval(() => {
       fetchEquipment();
       setLastUpdate(new Date());
     }, 60000);
-    
     return () => clearInterval(interval);
   }, []);
 
@@ -85,7 +82,6 @@ const GSEMaintenance = ({ token, user }) => {
     setLoading(true);
     try {
       const currentEquip = equipment.find(eq => eq.id === equipId);
-      
       const payload = {
         service_performed: serviceData.service_performed,
         technician_name: serviceData.technician_name,
@@ -226,7 +222,6 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       </div>
 
-      {/* Status Filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
         <button onClick={() => setFilter('all')} style={{ backgroundColor: filter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Status</button>
         <button onClick={() => setFilter('overdue')} style={{ backgroundColor: filter === 'overdue' ? '#e74c3c' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🔴 Overdue</button>
@@ -234,7 +229,6 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setFilter('upcoming')} style={{ backgroundColor: filter === 'upcoming' ? '#27ae60' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🟢 Upcoming</button>
       </div>
       
-      {/* Type Filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button onClick={() => setMaintenanceTypeFilter('all')} style={{ backgroundColor: maintenanceTypeFilter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Types</button>
         <button onClick={() => setMaintenanceTypeFilter('hour')} style={{ backgroundColor: maintenanceTypeFilter === 'hour' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⏱️ Hour-based</button>
@@ -243,7 +237,6 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setMaintenanceTypeFilter('none')} style={{ backgroundColor: maintenanceTypeFilter === 'none' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⭕ No Maintenance</button>
       </div>
 
-      {/* Auto-Update Info Banner */}
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
           <strong>🔄 Automatic Daily Calculation Enabled:</strong><br />
@@ -257,7 +250,6 @@ const GSEMaintenance = ({ token, user }) => {
       {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb' }}>{message}</div>}
       {error && <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #f5c6cb' }}>{error}</div>}
 
-      {/* Add Equipment Form */}
       {showAddForm && (
         <form onSubmit={handleAddEquipment} style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px' }}>
           <h3>Add GSE Equipment</h3>
@@ -314,7 +306,6 @@ const GSEMaintenance = ({ token, user }) => {
         </form>
       )}
 
-      {/* Equipment Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -363,7 +354,6 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal */}
       {showServiceForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
