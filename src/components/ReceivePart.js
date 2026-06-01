@@ -17,6 +17,10 @@ const ReceivePart = ({ token }) => {
     compatible_gse: '',
     location_bin: '',
     min_stock: 5,
+    maintenance_type: 'hour', // NEW: hour, month, year, none
+    service_interval_hours: 250,
+    service_interval_months: 6,
+    service_interval_years: 1,
     contact_person: '',
     contact_phone: '',
     contact_email: ''
@@ -32,7 +36,6 @@ const ReceivePart = ({ token }) => {
     setLoading(true);
     
     try {
-      // Try to receive the part
       await axios.post(`${API_URL}/api/transactions/receive`, {
         part_number: formData.part_number,
         quantity: parseInt(formData.quantity),
@@ -47,7 +50,6 @@ const ReceivePart = ({ token }) => {
       setTimeout(() => setMessage(''), 3000);
       
     } catch (err) {
-      // If part not found, show form to add the new part
       if (err.response?.data?.error === 'Part not found') {
         setShowNewPartForm(true);
         setNewPartData(prev => ({ ...prev, part_number: formData.part_number }));
@@ -67,7 +69,7 @@ const ReceivePart = ({ token }) => {
     setLoading(true);
     
     try {
-      // Create the new part
+      // First create the part with maintenance type
       await axios.post(`${API_URL}/api/parts`, {
         part_number: newPartData.part_number,
         description: newPartData.description,
@@ -75,6 +77,10 @@ const ReceivePart = ({ token }) => {
         compatible_gse: newPartData.compatible_gse,
         location_bin: newPartData.location_bin,
         min_stock: newPartData.min_stock,
+        maintenance_type: newPartData.maintenance_type,
+        service_interval_hours: newPartData.service_interval_hours,
+        service_interval_months: newPartData.service_interval_months,
+        service_interval_years: newPartData.service_interval_years,
         contact_person: newPartData.contact_person,
         contact_phone: newPartData.contact_phone,
         contact_email: newPartData.contact_email
@@ -82,7 +88,7 @@ const ReceivePart = ({ token }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Receive the initial stock
+      // Then receive the quantity
       await axios.post(`${API_URL}/api/transactions/receive`, {
         part_number: newPartData.part_number,
         quantity: parseInt(formData.quantity),
@@ -102,6 +108,10 @@ const ReceivePart = ({ token }) => {
         compatible_gse: '',
         location_bin: '',
         min_stock: 5,
+        maintenance_type: 'hour',
+        service_interval_hours: 250,
+        service_interval_months: 6,
+        service_interval_years: 1,
         contact_person: '',
         contact_phone: '',
         contact_email: ''
@@ -119,6 +129,10 @@ const ReceivePart = ({ token }) => {
         compatible_gse: '',
         location_bin: '',
         min_stock: 5,
+        maintenance_type: 'hour',
+        service_interval_hours: 250,
+        service_interval_months: 6,
+        service_interval_years: 1,
         contact_person: '',
         contact_phone: '',
         contact_email: ''
@@ -129,9 +143,20 @@ const ReceivePart = ({ token }) => {
     }
   };
 
+  // Get maintenance type display text
+  const getMaintenanceTypeDisplay = (type) => {
+    switch(type) {
+      case 'hour': return '⏱️ Hour-based (operating hours)';
+      case 'month': return '📅 Month-based (calendar months)';
+      case 'year': return '📆 Year-based (calendar years)';
+      case 'none': return '⭕ No maintenance required';
+      default: return type;
+    }
+  };
+
   return (
     <div>
-      <h2>Receive Spare Parts</h2>
+      <h2>Receive Parts</h2>
       
       {!showNewPartForm ? (
         <>
@@ -359,7 +384,97 @@ const ReceivePart = ({ token }) => {
               />
             </div>
 
-            <h4 style={{ marginTop: '20px' }}>📞 Contact Details (Optional)</h4>
+            <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>🔧 Maintenance Type *</h4>
+            <div style={{ marginBottom: '15px' }}>
+              <select
+                value={newPartData.maintenance_type}
+                onChange={(e) => setNewPartData({...newPartData, maintenance_type: e.target.value})}
+                required
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="hour">⏱️ Hour-based (operating hours)</option>
+                <option value="month">📅 Month-based (calendar months)</option>
+                <option value="year">📆 Year-based (calendar years)</option>
+                <option value="none">⭕ No maintenance required</option>
+              </select>
+            </div>
+
+            {/* Hour-based interval field */}
+            {newPartData.maintenance_type === 'hour' && (
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (hours)</label>
+                <input
+                  type="number"
+                  value={newPartData.service_interval_hours}
+                  onChange={(e) => setNewPartData({...newPartData, service_interval_hours: parseInt(e.target.value) || 250})}
+                  placeholder="e.g., 250 hours"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    fontSize: '14px'
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>How many operating hours before service is needed?</p>
+              </div>
+            )}
+
+            {/* Month-based interval field */}
+            {newPartData.maintenance_type === 'month' && (
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (months)</label>
+                <input
+                  type="number"
+                  value={newPartData.service_interval_months}
+                  onChange={(e) => setNewPartData({...newPartData, service_interval_months: parseInt(e.target.value) || 6})}
+                  placeholder="e.g., 6 months"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    fontSize: '14px'
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>How many months before service is needed?</p>
+              </div>
+            )}
+
+            {/* Year-based interval field */}
+            {newPartData.maintenance_type === 'year' && (
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (years)</label>
+                <input
+                  type="number"
+                  value={newPartData.service_interval_years}
+                  onChange={(e) => setNewPartData({...newPartData, service_interval_years: parseInt(e.target.value) || 1})}
+                  placeholder="e.g., 1 year"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    fontSize: '14px'
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>How many years before service is needed?</p>
+              </div>
+            )}
+
+            {newPartData.maintenance_type === 'none' && (
+              <div style={{ marginBottom: '15px', backgroundColor: '#e8f4fd', padding: '10px', borderRadius: '5px' }}>
+                <p style={{ fontSize: '13px', color: '#2c3e50', margin: 0 }}>ℹ️ This part does not require scheduled maintenance. It will be marked as "No Maintenance" in the schedule.</p>
+              </div>
+            )}
+
+            <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>📞 Contact Details (Optional)</h4>
             
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Person</label>
@@ -412,6 +527,59 @@ const ReceivePart = ({ token }) => {
               />
             </div>
 
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Initial Quantity *</label>
+              <input
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                required
+                placeholder="How many units?"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>PO / Reference Number</label>
+              <input
+                type="text"
+                value={formData.reference_number}
+                onChange={(e) => setFormData({...formData, reference_number: e.target.value})}
+                placeholder="Purchase order number"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Notes</label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                rows="3"
+                placeholder="Any additional notes..."
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
@@ -425,6 +593,10 @@ const ReceivePart = ({ token }) => {
                     compatible_gse: '',
                     location_bin: '',
                     min_stock: 5,
+                    maintenance_type: 'hour',
+                    service_interval_hours: 250,
+                    service_interval_months: 6,
+                    service_interval_years: 1,
                     contact_person: '',
                     contact_phone: '',
                     contact_email: ''
@@ -472,7 +644,9 @@ const ReceivePart = ({ token }) => {
           borderRadius: '5px',
           margin: '10px 0',
           border: '1px solid #c3e6cb'
-        }}>{message}</div>
+        }}>
+          {message}
+        </div>
       )}
       
       {error && !showNewPartForm && (
@@ -483,7 +657,9 @@ const ReceivePart = ({ token }) => {
           borderRadius: '5px',
           margin: '10px 0',
           border: '1px solid #f5c6cb'
-        }}>{error}</div>
+        }}>
+          {error}
+        </div>
       )}
     </div>
   );
