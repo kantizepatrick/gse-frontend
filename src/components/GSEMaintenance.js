@@ -219,7 +219,7 @@ const GSEMaintenance = ({ token, user }) => {
         </button>
       </div>
 
-      {/* Filter Tabs - Status */}
+      {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
         <button onClick={() => setFilter('all')} style={{ backgroundColor: filter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Status</button>
         <button onClick={() => setFilter('overdue')} style={{ backgroundColor: filter === 'overdue' ? '#e74c3c' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🔴 Overdue</button>
@@ -227,7 +227,6 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setFilter('upcoming')} style={{ backgroundColor: filter === 'upcoming' ? '#27ae60' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🟢 Upcoming</button>
       </div>
       
-      {/* Filter Tabs - Maintenance Type */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button onClick={() => setMaintenanceTypeFilter('all')} style={{ backgroundColor: maintenanceTypeFilter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Types</button>
         <button onClick={() => setMaintenanceTypeFilter('hour')} style={{ backgroundColor: maintenanceTypeFilter === 'hour' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⏱️ Hour-based</button>
@@ -243,24 +242,16 @@ const GSEMaintenance = ({ token, user }) => {
         <form onSubmit={handleAddEquipment} style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px' }}>
           <h3>Add Equipment to Maintenance Schedule</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Equipment Name *</label>
-              <input type="text" required value={newEquipment.equipment_name} onChange={(e) => setNewEquipment({...newEquipment, equipment_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-            </div>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Equipment Type</label>
-              <input type="text" value={newEquipment.equipment_type} onChange={(e) => setNewEquipment({...newEquipment, equipment_type: e.target.value})} placeholder="e.g., Tow Tractor, GPU" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-            </div>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Maintenance Type *</label>
+            <div><label style={{ fontWeight: 'bold' }}>Equipment Name *</label><input type="text" required value={newEquipment.equipment_name} onChange={(e) => setNewEquipment({...newEquipment, equipment_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
+            <div><label style={{ fontWeight: 'bold' }}>Equipment Type</label><input type="text" value={newEquipment.equipment_type} onChange={(e) => setNewEquipment({...newEquipment, equipment_type: e.target.value})} placeholder="e.g., Tow Tractor, GPU" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
+            <div><label style={{ fontWeight: 'bold' }}>Maintenance Type *</label>
               <select value={newEquipment.maintenance_type} onChange={(e) => setNewEquipment({...newEquipment, maintenance_type: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
                 <option value="hour">⏱️ Hour-based (operating hours)</option>
                 <option value="month">📅 Month-based (calendar months)</option>
                 <option value="year">📆 Year-based (calendar years)</option>
               </select>
             </div>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Service Interval</label>
+            <div><label style={{ fontWeight: 'bold' }}>Service Interval</label>
               <input type="number" value={newEquipment.interval_value} onChange={(e) => setNewEquipment({...newEquipment, interval_value: parseInt(e.target.value) || 250})} 
                 placeholder={newEquipment.maintenance_type === 'hour' ? 'e.g., 250 hours' : newEquipment.maintenance_type === 'month' ? 'e.g., 6 months' : 'e.g., 1 year'} 
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
@@ -281,7 +272,7 @@ const GSEMaintenance = ({ token, user }) => {
             <tr style={{ backgroundColor: '#2c3e50', color: 'white' }}>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Equipment</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Type</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maint Type</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maintenance Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Last Service</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Interval</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Next Due</th>
@@ -289,7 +280,7 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Progress</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </tr>
+            <tr>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
