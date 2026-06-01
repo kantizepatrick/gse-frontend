@@ -8,7 +8,8 @@ const Dashboard = ({ token, user }) => {
   const [stats, setStats] = useState({
     totalParts: 0,
     lowStockCount: 0,
-    maintenanceAlertCount: 0
+    maintenanceAlertCount: 0,
+    pendingApprovals: 0
   });
 
   const API_URL = 'https://gse-backend.onrender.com';
@@ -32,13 +33,15 @@ const Dashboard = ({ token, user }) => {
       
       const allMaintenance = maintenanceRes.data.equipment || [];
       
-      // Filter for alerts: overdue, due_soon, and upcoming with remaining
+      // Filter for overdue and due soon only
       const alerts = allMaintenance.filter(item => 
-        item.status === 'overdue' || item.status === 'due_soon' || item.status === 'upcoming'
+        item.status === 'overdue' || item.status === 'due_soon'
       );
       
-      // Sort by remaining value (most urgent first)
+      // Sort by urgency (overdue first, then by remaining value ascending)
       const sortedAlerts = [...alerts].sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (a.status !== 'overdue' && b.status === 'overdue') return 1;
         const aRemaining = a.remaining_value || a.hours_remaining || a.days_remaining || a.years_remaining || 999999;
         const bRemaining = b.remaining_value || b.hours_remaining || b.days_remaining || b.years_remaining || 999999;
         return aRemaining - bRemaining;
@@ -51,10 +54,20 @@ const Dashboard = ({ token, user }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Fetch pending approvals count (for approvers)
+      let pendingCount = 0;
+      if (user?.role === 'admin' || user?.role === 'manager') {
+        const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        pendingCount = pendingRes.data.requests?.length || 0;
+      }
+
       setStats({
         totalParts: partsRes.data.length,
         lowStockCount: lowStockRes.data.length,
-        maintenanceAlertCount: sortedAlerts.length
+        maintenanceAlertCount: sortedAlerts.length,
+        pendingApprovals: pendingCount
       });
 
       setLoading(false);
@@ -66,34 +79,31 @@ const Dashboard = ({ token, user }) => {
 
   const getMaintenanceTypeIcon = (type) => {
     switch(type) {
-      case 'hour': return '⏱️ Hours';
-      case 'month': return '📅 Days';
-      case 'year': return '📆 Years';
+      case 'hour': return '⏱️ Hour-based';
+      case 'month': return '📅 Month-based';
+      case 'year': return '📆 Year-based';
+      case 'none': return '⭕ No maintenance';
       default: return type;
     }
   };
 
-  const getRemainingValue = (item) => {
-    const remaining = item.remaining_value || item.hours_remaining || item.days_remaining || item.years_remaining || 0;
-    
+  const getRemainingDisplay = (item) => {
     if (item.maintenance_type === 'hour') {
-      return { value: remaining, unit: 'hours', display: `${remaining} hour${remaining !== 1 ? 's' : ''}` };
+      const remaining = item.hours_remaining || item.remaining_value || 0;
+      return `${remaining} hour${remaining !== 1 ? 's' : ''}`;
     } else if (item.maintenance_type === 'month') {
-      const days = remaining;
-      if (days >= 30) {
-        const months = Math.floor(days / 30);
-        const remainingDays = days % 30;
-        return { 
-          value: days, 
-          unit: 'days', 
-          display: `${months} month${months !== 1 ? 's' : ''}${remainingDays > 0 ? `, ${remainingDays} day${remainingDays !== 1 ? 's' : ''}` : ''}`
-        };
+      const remaining = item.days_remaining || item.remaining_value || 0;
+      if (remaining >= 30) {
+        const months = Math.floor(remaining / 30);
+        const days = remaining % 30;
+        return `${months} month${months !== 1 ? 's' : ''}${days > 0 ? `, ${days} day${days !== 1 ? 's' : ''}` : ''}`;
       }
-      return { value: days, unit: 'days', display: `${days} day${days !== 1 ? 's' : ''}` };
+      return `${remaining} day${remaining !== 1 ? 's' : ''}`;
     } else if (item.maintenance_type === 'year') {
-      return { value: remaining, unit: 'years', display: `${remaining} year${remaining !== 1 ? 's' : ''}` };
+      const remaining = item.years_remaining || item.remaining_value || 0;
+      return `${remaining} year${remaining !== 1 ? 's' : ''}`;
     }
-    return { value: 0, unit: '', display: 'N/A' };
+    return 'N/A';
   };
 
   const getStatusStyle = (status, remainingValue) => {
@@ -102,11 +112,6 @@ const Dashboard = ({ token, user }) => {
         return { color: '#e74c3c', bg: '#fdeaea', text: '🔴 Overdue', border: '#e74c3c' };
       case 'due_soon':
         return { color: '#f39c12', bg: '#fef5e7', text: '🟡 Due Soon', border: '#f39c12' };
-      case 'upcoming':
-        if (remainingValue <= 30) {
-          return { color: '#f39c12', bg: '#fef5e7', text: '🟡 Coming Soon', border: '#f39c12' };
-        }
-        return { color: '#27ae60', bg: '#eafaf1', text: '🟢 Upcoming', border: '#27ae60' };
       default:
         return { color: '#95a5a6', bg: '#f5f5f5', text: status, border: '#95a5a6' };
     }
@@ -125,6 +130,8 @@ const Dashboard = ({ token, user }) => {
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '50px' }}>Loading dashboard...</div>;
   }
+
+  const isApprover = user?.role === 'admin' || user?.role === 'manager';
 
   return (
     <div>
@@ -149,6 +156,19 @@ const Dashboard = ({ token, user }) => {
           <p style={{ margin: '5px 0 0' }}>Total Parts</p>
         </div>
         
+        {isApprover && (
+          <div style={{
+            backgroundColor: stats.pendingApprovals > 0 ? '#e74c3c' : '#27ae60',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '32px' }}>{stats.pendingApprovals}</h3>
+            <p style={{ margin: '5px 0 0' }}>Pending Approvals</p>
+          </div>
+        )}
+        
         <div style={{
           backgroundColor: stats.lowStockCount > 0 ? '#e74c3c' : '#27ae60',
           color: 'white',
@@ -168,7 +188,7 @@ const Dashboard = ({ token, user }) => {
           textAlign: 'center'
         }}>
           <h3 style={{ margin: 0, fontSize: '32px' }}>{stats.maintenanceAlertCount}</h3>
-          <p style={{ margin: '5px 0 0' }}>Maintenance Items</p>
+          <p style={{ margin: '5px 0 0' }}>Maintenance Alerts</p>
         </div>
       </div>
 
@@ -217,7 +237,7 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Section */}
+      {/* Maintenance Alerts Section - Overdue & Due Soon */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -225,12 +245,12 @@ const Dashboard = ({ token, user }) => {
         border: maintenanceAlerts.length > 0 ? '2px solid #f39c12' : '1px solid #ddd'
       }}>
         <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>🔧 Maintenance Schedule</span>
+          <span>🔧 Maintenance Alerts</span>
           {maintenanceAlerts.length > 0 && <span style={{ backgroundColor: '#f39c12', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{maintenanceAlerts.length}</span>}
         </h3>
         
         {maintenanceAlerts.length === 0 ? (
-          <p style={{ color: '#666' }}>✅ All equipment maintenance is up to date.</p>
+          <p style={{ color: '#666' }}>✅ No overdue or due soon maintenance items. All equipment is on track.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -248,35 +268,22 @@ const Dashboard = ({ token, user }) => {
               </thead>
               <tbody>
                 {maintenanceAlerts.map(item => {
-                  const remaining = getRemainingValue(item);
+                  const remaining = getRemainingDisplay(item);
                   const progress = getProgressPercentage(item);
-                  let statusStyle;
-                  
-                  if (item.status === 'overdue') {
-                    statusStyle = { color: '#e74c3c', text: '🔴 Overdue', bg: '#fdeaea' };
-                  } else if (item.status === 'due_soon') {
-                    statusStyle = { color: '#f39c12', text: '🟡 Due Soon', bg: '#fef5e7' };
-                  } else {
-                    if (remaining.value <= 30 && item.maintenance_type === 'month') {
-                      statusStyle = { color: '#f39c12', text: '🟡 Coming Soon', bg: '#fef5e7' };
-                    } else if (remaining.value <= 50 && item.maintenance_type === 'hour') {
-                      statusStyle = { color: '#f39c12', text: '🟡 Coming Soon', bg: '#fef5e7' };
-                    } else {
-                      statusStyle = { color: '#27ae60', text: '🟢 Upcoming', bg: '#eafaf1' };
-                    }
-                  }
+                  const statusStyle = getStatusStyle(item.status);
                   
                   return (
                     <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
                       <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{item.equipment_name}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.equipment_type || '-'}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.interval_value || '-'}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>{remaining.display}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.interval_value || item.service_interval_hours || '-'} {item.maintenance_type === 'hour' ? 'hrs' : item.maintenance_type === 'month' ? 'months' : 'years'}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>{remaining}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px', width: '120px' }}>
                         <div style={{ backgroundColor: '#e0e0e0', borderRadius: '10px', height: '8px', width: '100%' }}>
-                          <div style={{ backgroundColor: statusStyle.color === '#e74c3c' ? '#e74c3c' : statusStyle.color === '#f39c12' ? '#f39c12' : '#27ae60', width: `${progress}%`, height: '8px', borderRadius: '10px' }}></div>
+                          <div style={{ backgroundColor: statusStyle.color === '#e74c3c' ? '#e74c3c' : '#f39c12', width: `${progress}%`, height: '8px', borderRadius: '10px' }}></div>
                         </div>
+                        <span style={{ fontSize: '11px', color: '#666' }}>{Math.round(progress)}%</span>
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}><span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span></td>
                       <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
