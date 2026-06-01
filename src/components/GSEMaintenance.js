@@ -15,26 +15,15 @@ const GSEMaintenance = ({ token, user }) => {
     equipment_name: '',
     equipment_type: '',
     maintenance_type: 'hour',
-    last_service_hours: 0,
-    current_hours: 0,
-    service_interval_hours: 250,
-    last_service_date: '',
-    service_interval_months: 6,
-    last_service_year: new Date().getFullYear(),
-    service_interval_years: 1,
-    service_performed: '',
-    technician_name: '',
+    interval_value: 250,
     notes: ''
   });
   
   const [serviceData, setServiceData] = useState({
-    current_hours: 0,
+    current_value: 0,
     service_performed: '',
     technician_name: '',
-    notes: '',
-    service_interval_hours: 250,
-    service_interval_months: 6,
-    service_interval_years: 1
+    notes: ''
   });
 
   const API_URL = 'https://gse-backend.onrender.com';
@@ -59,7 +48,13 @@ const GSEMaintenance = ({ token, user }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/gse-maintenance`, newEquipment, {
+      await axios.post(`${API_URL}/api/gse-maintenance`, {
+        equipment_name: newEquipment.equipment_name,
+        equipment_type: newEquipment.equipment_type,
+        maintenance_type: newEquipment.maintenance_type,
+        interval_value: parseInt(newEquipment.interval_value),
+        notes: newEquipment.notes
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage('Equipment added to maintenance schedule!');
@@ -68,15 +63,7 @@ const GSEMaintenance = ({ token, user }) => {
         equipment_name: '',
         equipment_type: '',
         maintenance_type: 'hour',
-        last_service_hours: 0,
-        current_hours: 0,
-        service_interval_hours: 250,
-        last_service_date: '',
-        service_interval_months: 6,
-        last_service_year: new Date().getFullYear(),
-        service_interval_years: 1,
-        service_performed: '',
-        technician_name: '',
+        interval_value: 250,
         notes: ''
       });
       fetchEquipment();
@@ -89,31 +76,26 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
-  const handleRecordService = async (e, equipId) => {
+  const handleRecordService = async (e, item) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/gse-maintenance/${equipId}/service`, {
-        current_hours: parseInt(serviceData.current_hours),
+      await axios.post(`${API_URL}/api/gse-maintenance/${item.id}/service`, {
         service_performed: serviceData.service_performed,
         technician_name: serviceData.technician_name,
         notes: serviceData.notes,
-        service_interval_hours: serviceData.service_interval_hours,
-        service_interval_months: serviceData.service_interval_months,
-        service_interval_years: serviceData.service_interval_years
+        current_value: parseInt(serviceData.current_value) || 0
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMessage('Service recorded successfully!');
+      
+      setMessage('Service recorded successfully! Maintenance schedule updated.');
       setShowServiceForm(null);
       setServiceData({
-        current_hours: 0,
+        current_value: 0,
         service_performed: '',
         technician_name: '',
-        notes: '',
-        service_interval_hours: 250,
-        service_interval_months: 6,
-        service_interval_years: 1
+        notes: ''
       });
       fetchEquipment();
       setTimeout(() => setMessage(''), 3000);
@@ -125,26 +107,13 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
-  const handleUpdateHours = async (equipId, currentHours) => {
-    try {
-      await axios.put(`${API_URL}/api/gse-maintenance/${equipId}/usage`, {
-        current_hours: parseInt(currentHours)
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchEquipment();
-    } catch (err) {
-      console.error('Error updating hours:', err);
-    }
-  };
-
-  const handleDeleteEquipment = async (equipId, equipName) => {
-    if (window.confirm(`Delete "${equipName}" from maintenance schedule?`)) {
+  const handleDeleteEquipment = async (item) => {
+    if (window.confirm(`Delete "${item.equipment_name}" from maintenance schedule?`)) {
       try {
-        await axios.delete(`${API_URL}/api/gse-maintenance/${equipId}`, {
+        await axios.delete(`${API_URL}/api/gse-maintenance/${item.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setMessage(`"${equipName}" removed from schedule`);
+        setMessage(`"${item.equipment_name}" removed from schedule`);
         fetchEquipment();
         setTimeout(() => setMessage(''), 3000);
       } catch (err) {
@@ -156,11 +125,11 @@ const GSEMaintenance = ({ token, user }) => {
 
   const getMaintenanceTypeIcon = (type) => {
     switch(type) {
-      case 'hour': return '⏱️ Hour';
-      case 'month': return '📅 Month';
-      case 'year': return '📆 Year';
-      case 'none': return '⭕ None';
-      default: return type;
+      case 'hour': return { icon: '⏱️', text: 'Hour-based', unit: 'hours' };
+      case 'month': return { icon: '📅', text: 'Month-based', unit: 'days' };
+      case 'year': return { icon: '📆', text: 'Year-based', unit: 'years' };
+      case 'none': return { icon: '⭕', text: 'No maintenance', unit: '' };
+      default: return { icon: '❓', text: type, unit: '' };
     }
   };
 
@@ -172,38 +141,70 @@ const GSEMaintenance = ({ token, user }) => {
         return { color: '#f39c12', text: '🟡 Due Soon', bg: '#fef5e7' };
       case 'upcoming':
         return { color: '#27ae60', text: '🟢 Upcoming', bg: '#eafaf1' };
-      case 'no_maintenance':
-        return { color: '#95a5a6', text: '⚪ No Maintenance', bg: '#f5f5f5' };
       default:
         return { color: '#95a5a6', text: status, bg: '#f5f5f5' };
     }
   };
 
-  const getRemainingDisplay = (eq) => {
-    if (eq.maintenance_type === 'hour') {
-      return `${eq.hours_remaining || 0} hrs`;
-    } else if (eq.maintenance_type === 'month') {
-      return `${eq.days_remaining || 0} days`;
-    } else if (eq.maintenance_type === 'year') {
-      return `${eq.years_remaining || 0} yrs`;
+  const getRemainingDisplay = (item) => {
+    const type = getMaintenanceTypeIcon(item.maintenance_type);
+    const remaining = item.remaining_value || 0;
+    
+    if (item.maintenance_type === 'hour') {
+      return `${remaining} ${type.unit}`;
+    } else if (item.maintenance_type === 'month') {
+      const days = remaining;
+      if (days >= 30) {
+        const months = Math.floor(days / 30);
+        const remainingDays = days % 30;
+        return `${months} month${months !== 1 ? 's' : ''}${remainingDays > 0 ? `, ${remainingDays} day${remainingDays !== 1 ? 's' : ''}` : ''}`;
+      }
+      return `${days} day${days !== 1 ? 's' : ''}`;
+    } else if (item.maintenance_type === 'year') {
+      return `${remaining} year${remaining !== 1 ? 's' : ''}`;
     }
     return 'N/A';
   };
 
-  const getNextDueDisplay = (eq) => {
-    if (eq.maintenance_type === 'hour') {
-      return `${eq.next_service_hours || 0} hrs`;
-    } else if (eq.maintenance_type === 'month') {
-      return eq.next_service_date || 'Not set';
-    } else if (eq.maintenance_type === 'year') {
-      return eq.next_service_year || 'Not set';
-    }
-    return 'No schedule';
+  const getProgressPercentage = (item) => {
+    const interval = item.interval_value || 250;
+    const remaining = item.remaining_value || 0;
+    const used = interval - remaining;
+    if (interval <= 0) return 0;
+    return Math.min(100, Math.max(0, (used / interval) * 100));
   };
 
-  const filteredEquipment = equipment.filter(eq => {
-    if (filter !== 'all' && eq.status !== filter) return false;
-    if (maintenanceTypeFilter !== 'all' && eq.maintenance_type !== maintenanceTypeFilter) return false;
+  const getLastServiceDisplay = (item) => {
+    if (item.last_service_value) {
+      return `${item.last_service_value} ${getMaintenanceTypeIcon(item.maintenance_type).unit}`;
+    }
+    if (item.last_service_date) {
+      const date = new Date(item.last_service_date);
+      return date.toLocaleDateString();
+    }
+    if (item.last_service_year) {
+      return item.last_service_year.toString();
+    }
+    return 'Not recorded';
+  };
+
+  const getNextDueDisplay = (item) => {
+    if (item.next_due_value) {
+      return `${item.next_due_value} ${getMaintenanceTypeIcon(item.maintenance_type).unit}`;
+    }
+    if (item.next_service_date) {
+      const date = new Date(item.next_service_date);
+      return date.toLocaleDateString();
+    }
+    if (item.next_service_year) {
+      return item.next_service_year.toString();
+    }
+    return 'Calculating...';
+  };
+
+  const filteredEquipment = equipment.filter(item => {
+    if (filter !== 'all' && item.status !== filter) return false;
+    if (maintenanceTypeFilter !== 'all' && item.maintenance_type !== maintenanceTypeFilter) return false;
     return true;
   });
 
@@ -213,12 +214,12 @@ const GSEMaintenance = ({ token, user }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <h2>🔧 GSE Maintenance Schedule</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer' }}>
           {showAddForm ? 'Cancel' : '+ Add Equipment'}
         </button>
       </div>
 
-      {/* Filter Tabs - Status */}
+      {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
         <button onClick={() => setFilter('all')} style={{ backgroundColor: filter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Status</button>
         <button onClick={() => setFilter('overdue')} style={{ backgroundColor: filter === 'overdue' ? '#e74c3c' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🔴 Overdue</button>
@@ -226,13 +227,11 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setFilter('upcoming')} style={{ backgroundColor: filter === 'upcoming' ? '#27ae60' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🟢 Upcoming</button>
       </div>
       
-      {/* Filter Tabs - Maintenance Type */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button onClick={() => setMaintenanceTypeFilter('all')} style={{ backgroundColor: maintenanceTypeFilter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Types</button>
         <button onClick={() => setMaintenanceTypeFilter('hour')} style={{ backgroundColor: maintenanceTypeFilter === 'hour' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⏱️ Hour-based</button>
         <button onClick={() => setMaintenanceTypeFilter('month')} style={{ backgroundColor: maintenanceTypeFilter === 'month' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>📅 Month-based</button>
         <button onClick={() => setMaintenanceTypeFilter('year')} style={{ backgroundColor: maintenanceTypeFilter === 'year' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>📆 Year-based</button>
-        <button onClick={() => setMaintenanceTypeFilter('none')} style={{ backgroundColor: maintenanceTypeFilter === 'none' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⭕ No Maintenance</button>
       </div>
 
       {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb' }}>{message}</div>}
@@ -241,7 +240,7 @@ const GSEMaintenance = ({ token, user }) => {
       {/* Add Equipment Form */}
       {showAddForm && (
         <form onSubmit={handleAddEquipment} style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px' }}>
-          <h3>Add GSE Equipment</h3>
+          <h3>Add Equipment to Maintenance Schedule</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div><label style={{ fontWeight: 'bold' }}>Equipment Name *</label><input type="text" required value={newEquipment.equipment_name} onChange={(e) => setNewEquipment({...newEquipment, equipment_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
             <div><label style={{ fontWeight: 'bold' }}>Equipment Type</label><input type="text" value={newEquipment.equipment_type} onChange={(e) => setNewEquipment({...newEquipment, equipment_type: e.target.value})} placeholder="e.g., Tow Tractor, GPU" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
@@ -250,43 +249,13 @@ const GSEMaintenance = ({ token, user }) => {
                 <option value="hour">⏱️ Hour-based (operating hours)</option>
                 <option value="month">📅 Month-based (calendar months)</option>
                 <option value="year">📆 Year-based (calendar years)</option>
-                <option value="none">⭕ No maintenance</option>
               </select>
             </div>
-            <div></div>
-          </div>
-          
-          {/* Hour-based fields */}
-          {newEquipment.maintenance_type === 'hour' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
-              <div><label style={{ fontWeight: 'bold' }}>Last Service Hours</label><input type="number" value={newEquipment.last_service_hours} onChange={(e) => setNewEquipment({...newEquipment, last_service_hours: parseInt(e.target.value) || 0, current_hours: parseInt(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
-              <div><label style={{ fontWeight: 'bold' }}>Service Interval (hours)</label><input type="number" value={newEquipment.service_interval_hours} onChange={(e) => setNewEquipment({...newEquipment, service_interval_hours: parseInt(e.target.value) || 250})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
+            <div><label style={{ fontWeight: 'bold' }}>Service Interval</label>
+              <input type="number" value={newEquipment.interval_value} onChange={(e) => setNewEquipment({...newEquipment, interval_value: parseInt(e.target.value) || 250})} 
+                placeholder={newEquipment.maintenance_type === 'hour' ? 'e.g., 250 hours' : newEquipment.maintenance_type === 'month' ? 'e.g., 6 months' : 'e.g., 1 year'} 
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
             </div>
-          )}
-          
-          {/* Month-based fields */}
-          {newEquipment.maintenance_type === 'month' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
-              <div><label style={{ fontWeight: 'bold' }}>Last Service Date</label><input type="date" value={newEquipment.last_service_date} onChange={(e) => setNewEquipment({...newEquipment, last_service_date: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
-              <div><label style={{ fontWeight: 'bold' }}>Service Interval (months)</label><input type="number" value={newEquipment.service_interval_months} onChange={(e) => setNewEquipment({...newEquipment, service_interval_months: parseInt(e.target.value) || 6})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
-            </div>
-          )}
-          
-          {/* Year-based fields */}
-          {newEquipment.maintenance_type === 'year' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
-              <div><label style={{ fontWeight: 'bold' }}>Last Service Year</label><input type="number" value={newEquipment.last_service_year} onChange={(e) => setNewEquipment({...newEquipment, last_service_year: parseInt(e.target.value) || new Date().getFullYear()})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
-              <div><label style={{ fontWeight: 'bold' }}>Service Interval (years)</label><input type="number" value={newEquipment.service_interval_years} onChange={(e) => setNewEquipment({...newEquipment, service_interval_years: parseInt(e.target.value) || 1})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} /></div>
-            </div>
-          )}
-          
-          <div style={{ marginTop: '15px' }}>
-            <label style={{ fontWeight: 'bold' }}>Initial Service Performed</label>
-            <input type="text" value={newEquipment.service_performed} onChange={(e) => setNewEquipment({...newEquipment, service_performed: e.target.value})} placeholder="e.g., Initial inspection, Setup" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-          </div>
-          <div style={{ marginTop: '15px' }}>
-            <label style={{ fontWeight: 'bold' }}>Technician Name</label>
-            <input type="text" value={newEquipment.technician_name} onChange={(e) => setNewEquipment({...newEquipment, technician_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
           </div>
           <div style={{ marginTop: '15px' }}>
             <label style={{ fontWeight: 'bold' }}>Notes</label>
@@ -303,48 +272,41 @@ const GSEMaintenance = ({ token, user }) => {
             <tr style={{ backgroundColor: '#2c3e50', color: 'white' }}>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Equipment</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Type</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maint Type</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maintenance Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Last Service</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Current</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Interval</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Next Due</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Remaining</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Progress</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </tr>
+            <tr>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
+              const typeInfo = getMaintenanceTypeIcon(eq.maintenance_type);
               const statusStyle = getStatusBadge(eq.status);
+              const progress = getProgressPercentage(eq);
+              
               return (
                 <tr key={eq.id} style={{ backgroundColor: statusStyle.bg }}>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{eq.equipment_name}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{eq.equipment_type || '-'}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(eq.maintenance_type)}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {eq.maintenance_type === 'hour' && `${eq.last_service_hours} hrs`}
-                    {eq.maintenance_type === 'month' && eq.last_service_date}
-                    {eq.maintenance_type === 'year' && eq.last_service_year}
-                    {eq.maintenance_type === 'none' && '-'}
-                  </td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {eq.maintenance_type === 'hour' ? (
-                      canEdit ? (
-                        <input type="number" value={eq.current_hours} onChange={(e) => handleUpdateHours(eq.id, e.target.value)} style={{ width: '80px', padding: '5px', borderRadius: '3px', border: '1px solid #ddd' }} />
-                      ) : `${eq.current_hours} hrs`
-                    ) : (
-                      eq.maintenance_type === 'month' ? `${eq.days_remaining || 0} days left` :
-                      eq.maintenance_type === 'year' ? `${eq.years_remaining || 0} yrs left` : '-'
-                    )}
-                  </td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{typeInfo.icon} {typeInfo.text}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getLastServiceDisplay(eq)}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>{eq.interval_value || '-'} {typeInfo.unit}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getNextDueDisplay(eq)}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: eq.hours_remaining <= 0 || eq.days_remaining <= 0 || eq.years_remaining <= 0 ? '#e74c3c' : eq.hours_remaining <= 50 || eq.days_remaining <= 14 || eq.years_remaining === 0 ? '#f39c12' : '#27ae60' }}>{getRemainingDisplay(eq)}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>{getRemainingDisplay(eq)}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                    <div style={{ backgroundColor: '#e0e0e0', borderRadius: '10px', height: '8px', width: '100%' }}>
+                      <div style={{ backgroundColor: statusStyle.color === '#e74c3c' ? '#e74c3c' : statusStyle.color === '#f39c12' ? '#f39c12' : '#27ae60', width: `${progress}%`, height: '8px', borderRadius: '10px' }}></div>
+                    </div>
+                  </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}><span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span></td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {eq.maintenance_type !== 'none' && (
-                      <button onClick={() => setShowServiceForm(eq)} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>🔧 Record Service</button>
-                    )}
-                    {(user?.role === 'admin' || user?.role === 'manager') && (
-                      <button onClick={() => handleDeleteEquipment(eq.id, eq.equipment_name)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>🗑️ Delete</button>
+                    <button onClick={() => setShowServiceForm(eq)} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>🔧 Record Service</button>
+                    {canEdit && (
+                      <button onClick={() => handleDeleteEquipment(eq)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>🗑️ Delete</button>
                     )}
                   </td>
                 </tr>
@@ -359,56 +321,52 @@ const GSEMaintenance = ({ token, user }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3>Record Service for: {showServiceForm.equipment_name}</h3>
-            <p>Maintenance Type: <strong>{getMaintenanceTypeIcon(showServiceForm.maintenance_type)}</strong></p>
+            <p>Maintenance Type: <strong>{getMaintenanceTypeIcon(showServiceForm.maintenance_type).icon} {getMaintenanceTypeIcon(showServiceForm.maintenance_type).text}</strong></p>
+            <p>Current Status: <strong style={{ color: getStatusBadge(showServiceForm.status).color }}>{getStatusBadge(showServiceForm.status).text}</strong></p>
             
-            <form onSubmit={(e) => handleRecordService(e, showServiceForm.id)}>
-              {showServiceForm.maintenance_type === 'hour' && (
-                <>
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Current Hours *</label>
-                    <input type="number" required value={serviceData.current_hours} onChange={(e) => setServiceData({...serviceData, current_hours: e.target.value})} placeholder={`Current: ${showServiceForm.current_hours} hrs`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                  </div>
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Service Interval (hours)</label>
-                    <input type="number" value={serviceData.service_interval_hours} onChange={(e) => setServiceData({...serviceData, service_interval_hours: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_hours} hrs`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                  </div>
-                </>
-              )}
-              
-              {showServiceForm.maintenance_type === 'month' && (
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Service Interval (months)</label>
-                  <input type="number" value={serviceData.service_interval_months} onChange={(e) => setServiceData({...serviceData, service_interval_months: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_months} months`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                </div>
-              )}
-              
-              {showServiceForm.maintenance_type === 'year' && (
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Service Interval (years)</label>
-                  <input type="number" value={serviceData.service_interval_years} onChange={(e) => setServiceData({...serviceData, service_interval_years: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_years} years`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                </div>
-              )}
+            <form onSubmit={(e) => handleRecordService(e, showServiceForm)}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ fontWeight: 'bold' }}>Current {getMaintenanceTypeIcon(showServiceForm.maintenance_type).unit.toUpperCase()} Value *</label>
+                <input type="number" required value={serviceData.current_value} onChange={(e) => setServiceData({...serviceData, current_value: e.target.value})} 
+                  placeholder={`Enter current ${getMaintenanceTypeIcon(showServiceForm.maintenance_type).unit}`}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                <small style={{ color: '#666' }}>This will reset the remaining {getMaintenanceTypeIcon(showServiceForm.maintenance_type).unit} and update next due date.</small>
+              </div>
               
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold' }}>Service Performed *</label>
-                <input type="text" required value={serviceData.service_performed} onChange={(e) => setServiceData({...serviceData, service_performed: e.target.value})} placeholder="e.g., Oil change, Inspection, Calibration" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                <input type="text" required value={serviceData.service_performed} onChange={(e) => setServiceData({...serviceData, service_performed: e.target.value})} 
+                  placeholder="e.g., Oil change, Calibration, Inspection"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold' }}>Technician Name</label>
-                <input type="text" value={serviceData.technician_name} onChange={(e) => setServiceData({...serviceData, technician_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                <input type="text" value={serviceData.technician_name} onChange={(e) => setServiceData({...serviceData, technician_name: e.target.value})} 
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontWeight: 'bold' }}>Notes</label>
-                <textarea value={serviceData.notes} onChange={(e) => setServiceData({...serviceData, notes: e.target.value})} rows="3" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                <textarea value={serviceData.notes} onChange={(e) => setServiceData({...serviceData, notes: e.target.value})} rows="3" 
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', flex: 1 }}>Record Service</button>
-                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ current_hours: 0, service_performed: '', technician_name: '', notes: '', service_interval_hours: 250, service_interval_months: 6, service_interval_years: 1 }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ current_value: 0, service_performed: '', technician_name: '', notes: '' }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Cancel</button>
               </div>
             </form>
+            
+            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '5px' }}>
+              <h4 style={{ margin: '0 0 10px 0' }}>ℹ️ How it works:</h4>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px' }}>
+                <li>Enter the current {getMaintenanceTypeIcon(showServiceForm.maintenance_type).unit} value</li>
+                <li>The system will calculate the next service due date</li>
+                <li>Remaining {getMaintenanceTypeIcon(showServiceForm.maintenance_type).unit} will be reset to the interval value</li>
+                <li>Status will update to "Upcoming" after service</li>
+              </ul>
+            </div>
           </div>
         </div>
       )}

@@ -1,98 +1,255 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const Dashboard = ({ token }) => {
+const Dashboard = ({ token, user }) => {
   const [lowStockParts, setLowStockParts] = useState([]);
-  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalParts: 0,
+    totalTransactions: 0,
+    pendingApprovals: 0
+  });
 
   const API_URL = 'https://gse-backend.onrender.com';
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
     try {
-      const [lowStockRes, transactionsRes] = await Promise.all([
-        axios.get(`${API_URL}/api/reports/low-stock`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API_URL}/api/transactions?limit=10`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
+      // Fetch low stock parts
+      const lowStockRes = await axios.get(`${API_URL}/api/reports/low-stock`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setLowStockParts(lowStockRes.data);
-      setRecentTransactions(transactionsRes.data);
+
+      // Fetch maintenance alerts (overdue and due soon)
+      const maintenanceRes = await axios.get(`${API_URL}/api/gse-maintenance`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const allMaintenance = maintenanceRes.data.equipment || [];
+      // Filter for overdue and due soon
+      const alerts = allMaintenance.filter(item => 
+        item.status === 'overdue' || item.status === 'due_soon'
+      );
+      setMaintenanceAlerts(alerts);
+
+      // Fetch parts count
+      const partsRes = await axios.get(`${API_URL}/api/parts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Fetch pending approvals count (for approvers)
+      let pendingCount = 0;
+      if (user?.role === 'admin' || user?.role === 'manager') {
+        const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        pendingCount = pendingRes.data.requests?.length || 0;
+      }
+
+      setStats({
+        totalParts: partsRes.data.length,
+        totalTransactions: 0, // Will be fetched if needed
+        pendingApprovals: pendingCount
+      });
+
+      setLoading(false);
     } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
+      console.error('Error fetching dashboard data:', err);
       setLoading(false);
     }
-  }, [token]);
+  };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const getMaintenanceTypeIcon = (type) => {
+    switch(type) {
+      case 'hour': return '⏱️ Hour-based';
+      case 'month': return '📅 Month-based';
+      case 'year': return '📆 Year-based';
+      case 'none': return '⭕ No maintenance';
+      default: return type;
+    }
+  };
 
-  if (loading) return <div>Loading dashboard...</div>;
+  const getRemainingDisplay = (item) => {
+    if (item.maintenance_type === 'hour') {
+      const remaining = item.hours_remaining || item.remaining_value || 0;
+      return `${remaining} hours`;
+    } else if (item.maintenance_type === 'month') {
+      const remaining = item.days_remaining || item.remaining_value || 0;
+      return `${remaining} days`;
+    } else if (item.maintenance_type === 'year') {
+      const remaining = item.years_remaining || item.remaining_value || 0;
+      return `${remaining} years`;
+    }
+    return 'N/A';
+  };
+
+  const getStatusStyle = (status) => {
+    switch(status) {
+      case 'overdue':
+        return { color: '#e74c3c', bg: '#fdeaea', text: '🔴 Overdue' };
+      case 'due_soon':
+        return { color: '#f39c12', bg: '#fef5e7', text: '🟡 Due Soon' };
+      default:
+        return { color: '#95a5a6', bg: '#f5f5f5', text: status };
+    }
+  };
+
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '50px' }}>Loading dashboard...</div>;
+  }
+
+  const isApprover = user?.role === 'admin' || user?.role === 'manager';
 
   return (
     <div>
-      <h1>GSE Inventory Dashboard</h1>
-      
-      <div className="alert-section">
-        <h3>⚠️ Low Stock Alerts</h3>
+      <h2>Dashboard</h2>
+      <p>Welcome back, <strong>{user?.full_name || user?.username}</strong>!</p>
+
+      {/* Stats Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '20px',
+        marginBottom: '30px'
+      }}>
+        <div style={{
+          backgroundColor: '#3498db',
+          color: 'white',
+          padding: '20px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.totalParts}</h3>
+          <p style={{ margin: '5px 0 0' }}>Total Parts</p>
+        </div>
+        
+        {isApprover && (
+          <div style={{
+            backgroundColor: stats.pendingApprovals > 0 ? '#e74c3c' : '#27ae60',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.pendingApprovals}</h3>
+            <p style={{ margin: '5px 0 0' }}>Pending Approvals</p>
+          </div>
+        )}
+        
+        <div style={{
+          backgroundColor: lowStockParts.length > 0 ? '#e74c3c' : '#27ae60',
+          color: 'white',
+          padding: '20px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ margin: 0, fontSize: '28px' }}>{lowStockParts.length}</h3>
+          <p style={{ margin: '5px 0 0' }}>Low Stock Alerts</p>
+        </div>
+        
+        <div style={{
+          backgroundColor: maintenanceAlerts.length > 0 ? '#f39c12' : '#27ae60',
+          color: 'white',
+          padding: '20px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ margin: 0, fontSize: '28px' }}>{maintenanceAlerts.length}</h3>
+          <p style={{ margin: '5px 0 0' }}>Maintenance Alerts</p>
+        </div>
+      </div>
+
+      {/* Low Stock Alerts Section */}
+      <div style={{
+        backgroundColor: '#f9f9f9',
+        borderRadius: '8px',
+        padding: '20px',
+        marginBottom: '30px',
+        border: lowStockParts.length > 0 ? '2px solid #e74c3c' : '1px solid #ddd'
+      }}>
+        <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>⚠️ Low Stock Alerts</span>
+          {lowStockParts.length > 0 && <span style={{ backgroundColor: '#e74c3c', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{lowStockParts.length}</span>}
+        </h3>
+        
         {lowStockParts.length === 0 ? (
-          <p>All stock levels are good</p>
+          <p style={{ color: '#666' }}>✅ All parts are at or above minimum stock levels.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Part Number</th>
-                <th>Description</th>
-                <th>On Hand</th>
-                <th>Min Stock</th>
-                <th>Location</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lowStockParts.map(part => (
-                <tr key={part.part_number} className="alert-row">
-                  <td>{part.part_number}</td>
-                  <td>{part.description || '-'}</td>
-                  <td>{part.quantity_on_hand}</td>
-                  <td>{part.min_stock}</td>
-                  <td>{part.location_bin || '-'}</td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f2f2f2' }}>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Part Number</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Description</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Current Stock</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Min Stock</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Location</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lowStockParts.map(part => (
+                  <tr key={part.part_number} style={{ backgroundColor: '#fdeaea' }}>
+                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
+                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description}</td>
+                    <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: '#e74c3c' }}>{part.quantity_on_hand}</td>
+                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
+                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className="recent-section">
-        <h3>📋 Recent Transactions</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Part</th>
-              <th>Type</th>
-              <th>Quantity</th>
-              <th>GSE/Reference</th>
-              <th>By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentTransactions.map(tx => (
-              <tr key={tx.id}>
-                <td>{new Date(tx.created_at).toLocaleString()}</td>
-                <td>{tx.part_number}</td>
-                <td className={`tx-type-${tx.transaction_type.toLowerCase()}`}>{tx.transaction_type}</td>
-                <td>{tx.quantity}</td>
-                <td>{tx.gse_registration || tx.reference_number || '-'}</td>
-                <td>{tx.created_by}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Maintenance Alerts Section */}
+      <div style={{
+        backgroundColor: '#f9f9f9',
+        borderRadius: '8px',
+        padding: '20px',
+        border: maintenanceAlerts.length > 0 ? '2px solid #f39c12' : '1px solid #ddd'
+      }}>
+        <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>🔧 Maintenance Alerts</span>
+          {maintenanceAlerts.length > 0 && <span style={{ backgroundColor: '#f39c12', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{maintenanceAlerts.length}</span>}
+        </h3>
+        
+        {maintenanceAlerts.length === 0 ? (
+          <p style={{ color: '#666' }}>✅ All equipment maintenance is up to date.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f2f2f2' }}>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Equipment</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Type</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Maintenance Type</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {maintenanceAlerts.map(item => {
+                  const statusStyle = getStatusStyle(item.status);
+                  return (
+                    <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
+                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{item.equipment_name}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.equipment_type || '-'}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>{getRemainingDisplay(item)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}><span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
