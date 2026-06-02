@@ -86,7 +86,6 @@ const GSEMaintenance = ({ token, user }) => {
     try {
       const currentEquip = equipment.find(eq => eq.id === equipId);
       
-      // Don't allow service recording for no maintenance items
       if (currentEquip.maintenance_type === 'none') {
         setError('This item requires no maintenance. Cannot record service.');
         setTimeout(() => setError(''), 3000);
@@ -187,14 +186,14 @@ const GSEMaintenance = ({ token, user }) => {
 
   const getStatusDescription = (eq) => {
     if (eq.maintenance_type === 'none') {
-      return '⚪ No scheduled maintenance required for this item';
+      return '⚪ No scheduled maintenance required';
     } else if (eq.maintenance_type === 'hour') {
-      if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days (${Math.abs(eq.remaining_hours || 0)} hours)`;
-      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.remaining_hours || 0} hours remaining (≤ 40 hours)`;
-      return `✅ SERVICED - ${eq.current_hours || 0} hours used, next service in ${eq.remaining_hours || 0} hours`;
+      if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days`;
+      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.remaining_hours || 0} hours remaining`;
+      return `✅ SERVICED - ${eq.current_hours || 0} hours used`;
     } else if (eq.maintenance_type === 'month') {
       if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days`;
-      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.days_remaining || 0} days remaining (≤ 4 days)`;
+      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.days_remaining || 0} days remaining`;
       return `✅ SERVICED - Next service in ${eq.days_remaining || 0} days`;
     } else if (eq.maintenance_type === 'year') {
       if (eq.status === 'overdue') return '🔴 OVERDUE - Service year passed';
@@ -206,17 +205,17 @@ const GSEMaintenance = ({ token, user }) => {
 
   const getRemainingDisplay = (eq) => {
     if (eq.maintenance_type === 'none') {
-      return '⚪ No maintenance required';
+      return '⚪ No maintenance';
     } else if (eq.maintenance_type === 'hour') {
       const hrs = eq.remaining_hours || 0;
       const days = Math.ceil(hrs / 10);
       if (eq.status === 'overdue') {
-        return `🔴 ${Math.abs(hrs)} hrs overdue (${eq.daysOverdue || 0} days)`;
+        return `🔴 ${Math.abs(hrs)} hrs overdue`;
       }
       if (eq.status === 'due_soon') {
-        return `🟡 ${hrs} hrs left (${days} days) - DUE SOON!`;
+        return `🟡 ${hrs} hrs (${days} days) - DUE SOON!`;
       }
-      return `✅ ${hrs} hrs (${days} days) until next service`;
+      return `✅ ${hrs} hrs (${days} days)`;
     } else if (eq.maintenance_type === 'month') {
       const days = eq.days_remaining || 0;
       const weeks = (days / 7).toFixed(1);
@@ -226,11 +225,11 @@ const GSEMaintenance = ({ token, user }) => {
       if (eq.status === 'due_soon') {
         return `🟡 ${days} days (${weeks} weeks) - DUE SOON!`;
       }
-      return `✅ ${days} days (${weeks} weeks) until next service`;
+      return `✅ ${days} days (${weeks} weeks)`;
     } else if (eq.maintenance_type === 'year') {
       if (eq.status === 'overdue') return '🔴 OVERDUE';
       if (eq.status === 'due_soon') return '🟡 DUE THIS YEAR';
-      return `✅ ${eq.years_remaining || 0} yrs until next service`;
+      return `✅ ${eq.years_remaining || 0} yrs`;
     }
     return 'N/A';
   };
@@ -240,49 +239,27 @@ const GSEMaintenance = ({ token, user }) => {
     
     if (showServiceForm.maintenance_type === 'hour') {
       if (serviceData.update_method === 'hours' && serviceData.custom_current_hours) {
-        const currentHours = parseInt(serviceData.custom_current_hours);
         const intervalHours = parseInt(serviceData.service_interval_hours);
-        const nextHours = currentHours + intervalHours;
-        const hoursUntilDue = intervalHours;
-        
-        if (hoursUntilDue <= 40) {
-          return `⚠️ DUE SOON: ${hoursUntilDue} hours from now (Next service at ${nextHours} hours)`;
+        if (intervalHours <= 40) {
+          return `⚠️ DUE SOON: ${intervalHours} hours from now`;
         }
-        return `Next service due at ${nextHours} hours (${hoursUntilDue} hours from now)`;
+        return `Next service due in ${intervalHours} hours`;
       } else {
         const serviceDate = new Date(serviceData.custom_service_date);
         const daysToAdd = Math.ceil(serviceData.service_interval_hours / 10);
         const nextDate = new Date(serviceDate);
         nextDate.setDate(serviceDate.getDate() + daysToAdd);
-        const today = new Date();
-        const daysUntilDue = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
-        const hoursUntilDue = daysUntilDue * 10;
-        
-        if (hoursUntilDue <= 40) {
-          return `⚠️ DUE SOON: ${hoursUntilDue} hours remaining (Due on ${nextDate.toLocaleDateString()})`;
-        }
-        return `Next service due on ${nextDate.toLocaleDateString()} (${daysUntilDue} days from now)`;
+        return `Next service due on ${nextDate.toLocaleDateString()}`;
       }
     } else if (showServiceForm.maintenance_type === 'month') {
       const serviceDate = new Date(serviceData.custom_service_date);
       const nextDate = new Date(serviceDate);
       nextDate.setDate(serviceDate.getDate() + parseInt(serviceData.service_interval_months) * 30);
-      const today = new Date();
-      const daysUntilDue = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
-      
-      if (daysUntilDue <= 4) {
-        return `⚠️ DUE SOON: ${daysUntilDue} days remaining (Due on ${nextDate.toLocaleDateString()})`;
-      }
-      return `Next service due on ${nextDate.toLocaleDateString()} (${daysUntilDue} days from now)`;
+      return `Next service due on ${nextDate.toLocaleDateString()}`;
     } else if (showServiceForm.maintenance_type === 'year') {
       const serviceYear = parseInt(serviceData.custom_service_date.split('-')[0]);
       const nextYear = serviceYear + parseInt(serviceData.service_interval_years);
-      const currentYear = new Date().getFullYear();
-      
-      if (nextYear === currentYear) {
-        return `⚠️ DUE SOON: Service due THIS YEAR (${nextYear})`;
-      }
-      return `Next service due in year ${nextYear} (${nextYear - currentYear} years from now)`;
+      return `Next service due in year ${nextYear}`;
     }
     return '';
   };
@@ -328,11 +305,12 @@ const GSEMaintenance = ({ token, user }) => {
       {/* Info Banner */}
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>🔄 Status Definitions:</strong><br />
-          ✅ <strong>SERVICED:</strong> Equipment has been recently serviced, next service is more than 4 days away or more than 40 hours remaining<br />
-          🟡 <strong>DUE SOON:</strong> Service needed within 4 days or 40 hours<br />
-          🔴 <strong>OVERDUE:</strong> Service date has passed or hours exceeded<br />
-          ⚪ <strong>NO MAINTENANCE:</strong> No scheduled maintenance required for this item
+          <strong>📊 Column Guide:</strong><br />
+          📅 <strong>Last Service:</strong> Date of last service and hours used<br />
+          📊 <strong>Next Service:</strong> Exact due date and remaining time until next service<br />
+          ⏰ <strong>Remaining:</strong> Hours/days left before service is due<br />
+          🟡 <strong>DUE SOON:</strong> Less than 4 days or 40 hours remaining<br />
+          🔴 <strong>OVERDUE:</strong> Service date has passed
         </p>
       </div>
 
@@ -411,9 +389,9 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maint Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>📅 Last Service</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Current Status</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>📊 Next Service</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Interval</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Remaining</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
             </tr>
@@ -430,8 +408,8 @@ const GSEMaintenance = ({ token, user }) => {
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                     {eq.current_service_display || eq.last_service_date || eq.last_service_year || 'Not recorded'}
                   </td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: '#666' }}>
-                    {getStatusDescription(eq)}
+                  <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', fontWeight: 'bold', color: statusStyle.color === '#e74c3c' ? '#e74c3c' : (statusStyle.color === '#f39c12' ? '#f39c12' : '#0066cc') }}>
+                    {eq.next_service_column || eq.next_service_display || eq.next_due_display || 'Not scheduled'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     {eq.maintenance_type === 'hour' && `${eq.service_interval_hours || 250} hrs`}
@@ -475,7 +453,7 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal (only shown for non-no-maintenance items) */}
+      {/* Record Service Modal */}
       {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
