@@ -107,11 +107,11 @@ const GSEMaintenance = ({ token, user }) => {
         payload.custom_service_date = serviceData.custom_service_date;
       }
       
-      const response = await axios.post(`${API_URL}/api/gse-maintenance/${equipId}/service`, payload, {
+      await axios.post(`${API_URL}/api/gse-maintenance/${equipId}/service`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setMessage(`✅ ${response.data.message || 'Service recorded successfully!'}`);
+      setMessage('✅ Service recorded successfully!');
       setShowServiceForm(null);
       setServiceData({
         service_performed: '',
@@ -226,8 +226,6 @@ const GSEMaintenance = ({ token, user }) => {
     return true;
   });
 
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
@@ -338,7 +336,7 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </table>
+            </tr>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
@@ -381,7 +379,6 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal with Custom Options */}
       {showServiceForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -390,144 +387,75 @@ const GSEMaintenance = ({ token, user }) => {
             <p style={{ fontSize: '13px', color: '#666' }}>Current last service: {getLastServiceDisplay(showServiceForm)}</p>
             
             <form onSubmit={(e) => handleRecordService(e, showServiceForm.id)}>
-              
-              {/* Custom Service Date Option */}
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '8px', border: '1px solid #bde0fe' }}>
                 <label style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={serviceData.use_custom_date}
-                    onChange={(e) => setServiceData({...serviceData, use_custom_date: e.target.checked})}
-                  />
+                  <input type="checkbox" checked={serviceData.use_custom_date} onChange={(e) => setServiceData({...serviceData, use_custom_date: e.target.checked})} />
                   📅 Use custom service date (instead of today)
                 </label>
-                
                 {serviceData.use_custom_date && (
                   <div style={{ marginTop: '10px' }}>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Service Date:</label>
-                    <input 
-                      type="date" 
-                      value={serviceData.custom_service_date}
-                      onChange={(e) => setServiceData({...serviceData, custom_service_date: e.target.value})}
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                    />
+                    <input type="date" value={serviceData.custom_service_date} onChange={(e) => setServiceData({...serviceData, custom_service_date: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                     <small style={{ color: '#666' }}>Next service will be calculated from this date</small>
                   </div>
                 )}
               </div>
               
-              {/* Custom Current Hours Option (Hour-based only) */}
               {showServiceForm.maintenance_type === 'hour' && (
                 <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0fff0', borderRadius: '8px', border: '1px solid #b8e6b8' }}>
                   <label style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={serviceData.use_custom_hours}
-                      onChange={(e) => setServiceData({...serviceData, use_custom_hours: e.target.checked})}
-                    />
+                    <input type="checkbox" checked={serviceData.use_custom_hours} onChange={(e) => setServiceData({...serviceData, use_custom_hours: e.target.checked})} />
                     ⏱️ Set current hours manually
                   </label>
-                  
                   {serviceData.use_custom_hours && (
                     <div style={{ marginTop: '10px' }}>
                       <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Current Hours:</label>
-                      <input 
-                        type="number" 
-                        value={serviceData.custom_current_hours}
-                        onChange={(e) => setServiceData({...serviceData, custom_current_hours: e.target.value})}
-                        placeholder={`Current: ${showServiceForm.current_hours || 0} hrs`}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                      />
+                      <input type="number" value={serviceData.custom_current_hours} onChange={(e) => setServiceData({...serviceData, custom_current_hours: e.target.value})} placeholder={`Current: ${showServiceForm.current_hours || 0} hrs`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                       <small style={{ color: '#666' }}>This will be used as the last service hours</small>
                     </div>
                   )}
                 </div>
               )}
               
-              {/* Service Interval Settings */}
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff8f0', borderRadius: '8px', border: '1px solid #ffe0b3' }}>
                 <h4 style={{ margin: '0 0 10px 0' }}>⚙️ Service Interval Settings</h4>
-                
                 {showServiceForm.maintenance_type === 'hour' && (
                   <div>
                     <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Interval (hours)</label>
-                    <input 
-                      type="number" 
-                      value={serviceData.service_interval_hours} 
-                      onChange={(e) => setServiceData({...serviceData, service_interval_hours: parseInt(e.target.value)})} 
-                      placeholder={`Current: ${showServiceForm.service_interval_hours || 250} hrs`} 
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                    />
-                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
-                      ⏱️ Hours will increase by 10 each day from the service date
-                    </small>
+                    <input type="number" value={serviceData.service_interval_hours} onChange={(e) => setServiceData({...serviceData, service_interval_hours: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_hours || 250} hrs`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>⏱️ Hours will increase by 10 each day from the service date</small>
                   </div>
                 )}
-                
                 {showServiceForm.maintenance_type === 'month' && (
                   <div>
                     <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Interval (months)</label>
-                    <input 
-                      type="number" 
-                      value={serviceData.service_interval_months} 
-                      onChange={(e) => setServiceData({...serviceData, service_interval_months: parseInt(e.target.value)})} 
-                      placeholder={`Current: ${showServiceForm.service_interval_months || 6} months`} 
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                    />
-                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
-                      📅 Days remaining will decrease by 1 each day from the service date
-                    </small>
+                    <input type="number" value={serviceData.service_interval_months} onChange={(e) => setServiceData({...serviceData, service_interval_months: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_months || 6} months`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>📅 Days remaining will decrease by 1 each day from the service date</small>
                   </div>
                 )}
-                
                 {showServiceForm.maintenance_type === 'year' && (
                   <div>
                     <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Interval (years)</label>
-                    <input 
-                      type="number" 
-                      value={serviceData.service_interval_years} 
-                      onChange={(e) => setServiceData({...serviceData, service_interval_years: parseInt(e.target.value)})} 
-                      placeholder={`Current: ${showServiceForm.service_interval_years || 1} years`} 
-                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                    />
+                    <input type="number" value={serviceData.service_interval_years} onChange={(e) => setServiceData({...serviceData, service_interval_years: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_years || 1} years`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                   </div>
                 )}
               </div>
               
-              {/* Service Details */}
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Performed *</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={serviceData.service_performed} 
-                  onChange={(e) => setServiceData({...serviceData, service_performed: e.target.value})} 
-                  placeholder="e.g., Oil change, Inspection, Calibration" 
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                />
+                <input type="text" required value={serviceData.service_performed} onChange={(e) => setServiceData({...serviceData, service_performed: e.target.value})} placeholder="e.g., Oil change, Inspection, Calibration" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Technician Name</label>
-                <input 
-                  type="text" 
-                  value={serviceData.technician_name} 
-                  onChange={(e) => setServiceData({...serviceData, technician_name: e.target.value})} 
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                />
+                <input type="text" value={serviceData.technician_name} onChange={(e) => setServiceData({...serviceData, technician_name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Notes</label>
-                <textarea 
-                  value={serviceData.notes} 
-                  onChange={(e) => setServiceData({...serviceData, notes: e.target.value})} 
-                  rows="3" 
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} 
-                />
+                <textarea value={serviceData.notes} onChange={(e) => setServiceData({...serviceData, notes: e.target.value})} rows="3" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
               </div>
               
-              {/* Preview Section */}
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px' }}>
                 <strong>📋 Next Service Preview:</strong><br />
                 {showServiceForm.maintenance_type === 'hour' && (
@@ -564,21 +492,7 @@ const GSEMaintenance = ({ token, user }) => {
                 <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', flex: 1 }}>
                   {loading ? 'Saving...' : '✅ Record Service'}
                 </button>
-                <button type="button" onClick={() => { 
-                  setShowServiceForm(null); 
-                  setServiceData({ 
-                    service_performed: '', 
-                    technician_name: '', 
-                    notes: '', 
-                    service_interval_hours: 250, 
-                    service_interval_months: 6, 
-                    service_interval_years: 1,
-                    use_custom_date: false,
-                    custom_service_date: '',
-                    use_custom_hours: false,
-                    custom_current_hours: ''
-                  }); 
-                }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>
+                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_interval_hours: 250, service_interval_months: 6, service_interval_years: 1, use_custom_date: false, custom_service_date: '', use_custom_hours: false, custom_current_hours: '' }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>
                   Cancel
                 </button>
               </div>

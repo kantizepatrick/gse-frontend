@@ -36,10 +36,21 @@ const Dashboard = ({ token, user }) => {
       
       const allMaintenance = maintenanceRes.data.equipment || [];
       
+      // Debug logs
+      console.log('=== MAINTENANCE DEBUG ===');
+      console.log('Total maintenance items:', allMaintenance.length);
+      allMaintenance.forEach(item => {
+        console.log(`- ${item.equipment_name}: status=${item.status}, type=${item.maintenance_type}`);
+      });
+      
       // Filter for overdue and due soon ONLY
-      const overdueAndDueSoon = allMaintenance.filter(item => 
-        item.status === 'overdue' || item.status === 'due_soon'
-      );
+      const overdue = allMaintenance.filter(item => item.status === 'overdue');
+      const dueSoon = allMaintenance.filter(item => item.status === 'due_soon');
+      
+      console.log('Overdue count:', overdue.length);
+      console.log('Due soon count:', dueSoon.length);
+      
+      const overdueAndDueSoon = [...overdue, ...dueSoon];
       
       // Format maintenance alerts
       const formattedAlerts = overdueAndDueSoon.map(item => ({
@@ -54,7 +65,7 @@ const Dashboard = ({ token, user }) => {
         remaining: getRemainingText(item)
       }));
       
-      // Sort by urgency (overdue first, then by remaining value)
+      // Sort: overdue first, then due soon
       const sortedAlerts = [...formattedAlerts].sort((a, b) => {
         if (a.status === 'overdue' && b.status !== 'overdue') return -1;
         if (a.status !== 'overdue' && b.status === 'overdue') return 1;
@@ -71,10 +82,14 @@ const Dashboard = ({ token, user }) => {
       // Fetch pending approvals
       let pendingCount = 0;
       if (user?.role === 'admin' || user?.role === 'manager') {
-        const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        pendingCount = pendingRes.data.requests?.length || 0;
+        try {
+          const pendingRes = await axios.get(`${API_URL}/api/requests/pending`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          pendingCount = pendingRes.data.requests?.length || 0;
+        } catch (err) {
+          console.log('No pending approvals endpoint');
+        }
       }
 
       setStats({
@@ -364,7 +379,7 @@ const Dashboard = ({ token, user }) => {
                           {statusStyle.text}
                         </span>
                       </td>
-                    </tr>
+                    </table>
                   );
                 })}
               </tbody>
