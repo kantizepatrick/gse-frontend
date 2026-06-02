@@ -85,6 +85,15 @@ const GSEMaintenance = ({ token, user }) => {
     setLoading(true);
     try {
       const currentEquip = equipment.find(eq => eq.id === equipId);
+      
+      // Don't allow service recording for no maintenance items
+      if (currentEquip.maintenance_type === 'none') {
+        setError('This item requires no maintenance. Cannot record service.');
+        setTimeout(() => setError(''), 3000);
+        setLoading(false);
+        return;
+      }
+      
       const payload = {
         service_performed: serviceData.service_performed,
         technician_name: serviceData.technician_name,
@@ -156,7 +165,7 @@ const GSEMaintenance = ({ token, user }) => {
       case 'hour': return '⏱️ Hour (10 hrs/day)';
       case 'month': return '📅 Month';
       case 'year': return '📆 Year';
-      case 'none': return '⭕ None';
+      case 'none': return '⭕ No Maintenance';
       default: return type;
     }
   };
@@ -170,14 +179,16 @@ const GSEMaintenance = ({ token, user }) => {
       case 'serviced':
         return { color: '#27ae60', text: '✅ SERVICED', bg: '#eafaf1' };
       case 'no_maintenance':
-        return { color: '#95a5a6', text: '⚪ No Maintenance', bg: '#f5f5f5' };
+        return { color: '#95a5a6', text: '⚪ NO MAINTENANCE', bg: '#f5f5f5' };
       default:
         return { color: '#95a5a6', text: status, bg: '#f5f5f5' };
     }
   };
 
   const getStatusDescription = (eq) => {
-    if (eq.maintenance_type === 'hour') {
+    if (eq.maintenance_type === 'none') {
+      return '⚪ No scheduled maintenance required for this item';
+    } else if (eq.maintenance_type === 'hour') {
       if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days (${Math.abs(eq.remaining_hours || 0)} hours)`;
       if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.remaining_hours || 0} hours remaining (≤ 40 hours)`;
       return `✅ SERVICED - ${eq.current_hours || 0} hours used, next service in ${eq.remaining_hours || 0} hours`;
@@ -194,7 +205,9 @@ const GSEMaintenance = ({ token, user }) => {
   };
 
   const getRemainingDisplay = (eq) => {
-    if (eq.maintenance_type === 'hour') {
+    if (eq.maintenance_type === 'none') {
+      return '⚪ No maintenance required';
+    } else if (eq.maintenance_type === 'hour') {
       const hrs = eq.remaining_hours || 0;
       const days = Math.ceil(hrs / 10);
       if (eq.status === 'overdue') {
@@ -300,6 +313,7 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setFilter('overdue')} style={{ backgroundColor: filter === 'overdue' ? '#e74c3c' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🔴 Overdue</button>
         <button onClick={() => setFilter('due_soon')} style={{ backgroundColor: filter === 'due_soon' ? '#f39c12' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🟡 Due Soon</button>
         <button onClick={() => setFilter('serviced')} style={{ backgroundColor: filter === 'serviced' ? '#27ae60' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>✅ Serviced</button>
+        <button onClick={() => setFilter('no_maintenance')} style={{ backgroundColor: filter === 'no_maintenance' ? '#95a5a6' : '#bdc3c7', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⚪ No Maintenance</button>
       </div>
       
       {/* Maintenance Type Filter Buttons */}
@@ -318,7 +332,7 @@ const GSEMaintenance = ({ token, user }) => {
           ✅ <strong>SERVICED:</strong> Equipment has been recently serviced, next service is more than 4 days away or more than 40 hours remaining<br />
           🟡 <strong>DUE SOON:</strong> Service needed within 4 days or 40 hours<br />
           🔴 <strong>OVERDUE:</strong> Service date has passed or hours exceeded<br />
-          📅 <strong>Automatic calculation:</strong> Next service = Last service date + Interval
+          ⚪ <strong>NO MAINTENANCE:</strong> No scheduled maintenance required for this item
         </p>
       </div>
 
@@ -407,16 +421,14 @@ const GSEMaintenance = ({ token, user }) => {
           <tbody>
             {filteredEquipment.map(eq => {
               const statusStyle = getStatusBadge(eq.status);
+              const isNoMaintenance = eq.maintenance_type === 'none';
               return (
                 <tr key={eq.id} style={{ backgroundColor: statusStyle.bg }}>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{eq.equipment_name}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{eq.equipment_type || '-'}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(eq.maintenance_type)}</td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
-                    {eq.maintenance_type === 'hour' && eq.last_service_date && `${eq.last_service_date} (${eq.current_hours || 0} hrs used)`}
-                    {eq.maintenance_type === 'hour' && !eq.last_service_date && 'Not recorded'}
-                    {eq.maintenance_type === 'month' && (eq.last_service_date || 'Not recorded')}
-                    {eq.maintenance_type === 'year' && (eq.last_service_year || 'Not recorded')}
+                    {eq.current_service_display || eq.last_service_date || eq.last_service_year || 'Not recorded'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: '#666' }}>
                     {getStatusDescription(eq)}
@@ -434,7 +446,7 @@ const GSEMaintenance = ({ token, user }) => {
                     <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {eq.maintenance_type !== 'none' && (
+                    {!isNoMaintenance && (
                       <button onClick={() => {
                         setShowServiceForm(eq);
                         setServiceData({
@@ -463,8 +475,8 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal */}
-      {showServiceForm && (
+      {/* Record Service Modal (only shown for non-no-maintenance items) */}
+      {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3>🔧 Record Service for: {showServiceForm.equipment_name}</h3>
