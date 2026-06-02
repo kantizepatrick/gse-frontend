@@ -176,29 +176,100 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
+  const getStatusDescription = (eq) => {
+    if (eq.maintenance_type === 'hour') {
+      if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days (${Math.abs(eq.remaining_hours || 0)} hours)`;
+      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.remaining_hours || 0} hours remaining (≤ 40 hours)`;
+      return `🟢 Upcoming - ${eq.current_hours || 0} hours used, ${eq.remaining_hours || 0} hours left`;
+    } else if (eq.maintenance_type === 'month') {
+      if (eq.status === 'overdue') return `🔴 OVERDUE by ${eq.daysOverdue || 0} days`;
+      if (eq.status === 'due_soon') return `🟡 DUE SOON - Only ${eq.days_remaining || 0} days remaining (≤ 4 days)`;
+      return `🟢 Upcoming - ${eq.days_remaining || 0} days left`;
+    } else if (eq.maintenance_type === 'year') {
+      if (eq.status === 'overdue') return '🔴 OVERDUE - Service year passed';
+      if (eq.status === 'due_soon') return '🟡 DUE SOON - Service due this year';
+      return `🟢 Upcoming - ${eq.years_remaining || 0} years left`;
+    }
+    return '';
+  };
+
+  const getRemainingDisplay = (eq) => {
+    if (eq.maintenance_type === 'hour') {
+      const hrs = eq.remaining_hours || 0;
+      const days = Math.ceil(hrs / 10);
+      if (eq.status === 'overdue') {
+        return `🔴 ${Math.abs(hrs)} hrs overdue (${eq.daysOverdue || 0} days)`;
+      }
+      if (eq.status === 'due_soon') {
+        return `🟡 ${hrs} hrs left (${days} days) - DUE SOON!`;
+      }
+      return `${hrs} hrs (${days} days)`;
+    } else if (eq.maintenance_type === 'month') {
+      const days = eq.days_remaining || 0;
+      const weeks = (days / 7).toFixed(1);
+      if (eq.status === 'overdue') {
+        return `🔴 ${eq.daysOverdue || 0} days overdue`;
+      }
+      if (eq.status === 'due_soon') {
+        return `🟡 ${days} days (${weeks} weeks) - DUE SOON!`;
+      }
+      return `${days} days (${weeks} weeks)`;
+    } else if (eq.maintenance_type === 'year') {
+      if (eq.status === 'overdue') return '🔴 OVERDUE';
+      if (eq.status === 'due_soon') return '🟡 DUE THIS YEAR';
+      return `${eq.years_remaining || 0} yrs`;
+    }
+    return 'N/A';
+  };
+
   const calculateNextDuePreview = () => {
     if (!showServiceForm) return '';
     
     if (showServiceForm.maintenance_type === 'hour') {
       if (serviceData.update_method === 'hours' && serviceData.custom_current_hours) {
-        const nextHours = parseInt(serviceData.custom_current_hours) + parseInt(serviceData.service_interval_hours);
-        return `Next service due at ${nextHours} hours`;
+        const currentHours = parseInt(serviceData.custom_current_hours);
+        const intervalHours = parseInt(serviceData.service_interval_hours);
+        const nextHours = currentHours + intervalHours;
+        const hoursUntilDue = intervalHours;
+        
+        if (hoursUntilDue <= 40) {
+          return `⚠️ DUE SOON: ${hoursUntilDue} hours from now (Next service at ${nextHours} hours)`;
+        }
+        return `Next service due at ${nextHours} hours (${hoursUntilDue} hours from now)`;
       } else {
         const serviceDate = new Date(serviceData.custom_service_date);
         const daysToAdd = Math.ceil(serviceData.service_interval_hours / 10);
         const nextDate = new Date(serviceDate);
         nextDate.setDate(serviceDate.getDate() + daysToAdd);
-        return `Next service due on ${nextDate.toLocaleDateString()} (${daysToAdd} days from service date)`;
+        const today = new Date();
+        const daysUntilDue = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+        const hoursUntilDue = daysUntilDue * 10;
+        
+        if (hoursUntilDue <= 40) {
+          return `⚠️ DUE SOON: ${hoursUntilDue} hours remaining (Due on ${nextDate.toLocaleDateString()})`;
+        }
+        return `Next service due on ${nextDate.toLocaleDateString()} (${daysUntilDue} days from now)`;
       }
     } else if (showServiceForm.maintenance_type === 'month') {
       const serviceDate = new Date(serviceData.custom_service_date);
       const nextDate = new Date(serviceDate);
       nextDate.setMonth(serviceDate.getMonth() + parseInt(serviceData.service_interval_months));
-      return `Next service due on ${nextDate.toLocaleDateString()}`;
+      const today = new Date();
+      const daysUntilDue = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilDue <= 4) {
+        return `⚠️ DUE SOON: ${daysUntilDue} days remaining (Due on ${nextDate.toLocaleDateString()})`;
+      }
+      return `Next service due on ${nextDate.toLocaleDateString()} (${daysUntilDue} days from now)`;
     } else if (showServiceForm.maintenance_type === 'year') {
       const serviceYear = parseInt(serviceData.custom_service_date.split('-')[0]);
       const nextYear = serviceYear + parseInt(serviceData.service_interval_years);
-      return `Next service due in year ${nextYear}`;
+      const currentYear = new Date().getFullYear();
+      
+      if (nextYear === currentYear) {
+        return `⚠️ DUE SOON: Service due THIS YEAR (${nextYear})`;
+      }
+      return `Next service due in year ${nextYear} (${nextYear - currentYear} years from now)`;
     }
     return '';
   };
@@ -239,14 +310,14 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setMaintenanceTypeFilter('none')} style={{ backgroundColor: maintenanceTypeFilter === 'none' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⭕ No Maintenance</button>
       </div>
 
-      {/* Info Banner */}
+      {/* Info Banner with Updated Thresholds */}
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>🔄 How Service Recording Works:</strong><br />
-          📅 <strong>Update by Date:</strong> Enter the service date, system calculates hours automatically (10 hours/day)<br />
-          ⏱️ <strong>Update by Hours (Hour-based only):</strong> Enter current meter reading, system calculates next service<br />
-          ⚙️ <strong>Change Interval:</strong> Update how many hours/months/years until next service<br />
-          ✅ <strong>Preview:</strong> See when next service will be due before saving!
+          <strong>🔄 Updated Thresholds:</strong><br />
+          ⏱️ <strong>Hour-based:</strong> DUE SOON when ≤ 40 hours remaining | OVERDUE when ≤ 0 hours<br />
+          📅 <strong>Month-based:</strong> DUE SOON when ≤ 4 days remaining | OVERDUE when ≤ 0 days<br />
+          📆 <strong>Year-based:</strong> DUE SOON = current year | OVERDUE = past year<br />
+          ✅ <strong>Automatic counting:</strong> Hours increase by 10 every day / Days decrease by 1 every day
         </p>
       </div>
 
@@ -347,9 +418,7 @@ const GSEMaintenance = ({ token, user }) => {
                     {eq.maintenance_type === 'year' && (eq.last_service_year || 'Not recorded')}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: '#666' }}>
-                    {eq.maintenance_type === 'hour' && `${eq.current_hours || 0} hours used`}
-                    {eq.maintenance_type === 'month' && `${eq.days_remaining || 0} days remaining`}
-                    {eq.maintenance_type === 'year' && `${eq.years_remaining || 0} years remaining`}
+                    {getStatusDescription(eq)}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     {eq.maintenance_type === 'hour' && `${eq.service_interval_hours || 250} hrs`}
@@ -358,7 +427,7 @@ const GSEMaintenance = ({ token, user }) => {
                     {eq.maintenance_type === 'none' && '-'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
-                    {eq.next_due_display || 'Not scheduled'}
+                    {eq.next_service_display || eq.next_due_display || 'Not scheduled'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
@@ -393,7 +462,7 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal with ALL Options */}
+      {/* Record Service Modal */}
       {showServiceForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -405,7 +474,7 @@ const GSEMaintenance = ({ token, user }) => {
             
             <form onSubmit={(e) => handleRecordService(e, showServiceForm.id)}>
               
-              {/* OPTION 1: Choose Update Method (Hour-based only) */}
+              {/* Choose Update Method (Hour-based only) */}
               {showServiceForm.maintenance_type === 'hour' && (
                 <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '1px solid #bde0fe' }}>
                   <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>📌 How do you want to update?</label>
@@ -434,7 +503,7 @@ const GSEMaintenance = ({ token, user }) => {
                 </div>
               )}
               
-              {/* OPTION 2A: Date Update Section */}
+              {/* Date Update Section */}
               {(serviceData.update_method === 'date' || showServiceForm.maintenance_type !== 'hour') && (
                 <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '8px', border: '1px solid #bde0fe' }}>
                   <h4 style={{ margin: '0 0 15px 0', color: '#0066cc' }}>📅 Update by Service Date</h4>
@@ -455,7 +524,7 @@ const GSEMaintenance = ({ token, user }) => {
                 </div>
               )}
               
-              {/* OPTION 2B: Hours Update Section (Hour-based only) */}
+              {/* Hours Update Section (Hour-based only) */}
               {showServiceForm.maintenance_type === 'hour' && serviceData.update_method === 'hours' && (
                 <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#f0fff0', borderRadius: '8px', border: '1px solid #b8e6b8' }}>
                   <h4 style={{ margin: '0 0 15px 0', color: '#2e7d32' }}>⏱️ Update by Current Hours</h4>
@@ -475,7 +544,7 @@ const GSEMaintenance = ({ token, user }) => {
                 </div>
               )}
               
-              {/* OPTION 3: Service Interval Settings */}
+              {/* Service Interval Settings */}
               <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#fff8f0', borderRadius: '8px', border: '1px solid #ffe0b3' }}>
                 <h4 style={{ margin: '0 0 15px 0', color: '#e65100' }}>⚙️ Change Service Interval (Optional)</h4>
                 {showServiceForm.maintenance_type === 'hour' && (
@@ -488,7 +557,7 @@ const GSEMaintenance = ({ token, user }) => {
                       placeholder={`Current: ${showServiceForm.service_interval_hours || 250} hours`} 
                       style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} 
                     />
-                    <small>Next service will be due after this many hours</small>
+                    <small>⚠️ DUE SOON when ≤ 40 hours remaining</small>
                   </div>
                 )}
                 {showServiceForm.maintenance_type === 'month' && (
@@ -501,6 +570,7 @@ const GSEMaintenance = ({ token, user }) => {
                       placeholder={`Current: ${showServiceForm.service_interval_months || 6} months`} 
                       style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} 
                     />
+                    <small>⚠️ DUE SOON when ≤ 4 days remaining</small>
                   </div>
                 )}
                 {showServiceForm.maintenance_type === 'year' && (
@@ -552,7 +622,7 @@ const GSEMaintenance = ({ token, user }) => {
                 />
               </div>
               
-              {/* PREVIEW Section - Shows next service due */}
+              {/* PREVIEW Section */}
               <div style={{ marginBottom: '25px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
                 <strong style={{ fontSize: '14px' }}>📋 PREVIEW - Next Service Will Be Due:</strong><br />
                 <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#0066cc' }}>
