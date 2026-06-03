@@ -25,13 +25,13 @@ const Dashboard = ({ token, user }) => {
       });
       setLowStockParts(lowStockRes.data);
 
-      // Fetch maintenance alerts (overdue and due soon) with full data
+      // Fetch maintenance alerts (overdue and due soon)
       const maintenanceRes = await axios.get(`${API_URL}/api/gse-maintenance`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       const allMaintenance = maintenanceRes.data.equipment || [];
-      // Filter for overdue and due soon, but keep all data for display
+      // Filter for overdue and due soon
       const alerts = allMaintenance.filter(item => 
         item.status === 'overdue' || item.status === 'due_soon'
       );
@@ -79,76 +79,62 @@ const Dashboard = ({ token, user }) => {
       const hrs = item.remaining_hours || 0;
       const days = Math.ceil(hrs / 10);
       if (item.status === 'overdue') {
-        return `🔴 ${Math.abs(hrs)} hrs overdue (${item.daysOverdue || 0} days)`;
+        return `${Math.abs(hrs)} hours overdue`;
       }
       if (item.status === 'due_soon') {
-        return `🟡 ${hrs} hrs (${days} days) - DUE SOON!`;
+        return `${hrs} hours (${days} days)`;
       }
-      return `✅ ${hrs} hrs (${days} days)`;
+      return `${hrs} hours (${days} days)`;
     } else if (item.maintenance_type === 'month') {
       const days = item.days_remaining || 0;
-      const weeks = (days / 7).toFixed(1);
       if (item.status === 'overdue') {
-        return `🔴 ${item.daysOverdue || 0} days overdue`;
+        return `${item.daysOverdue || 0} days overdue`;
       }
       if (item.status === 'due_soon') {
-        return `🟡 ${days} days (${weeks} weeks) - DUE SOON!`;
+        return `${days} days`;
       }
-      return `✅ ${days} days (${weeks} weeks)`;
+      return `${days} days`;
     } else if (item.maintenance_type === 'year') {
-      if (item.status === 'overdue') return '🔴 OVERDUE';
-      if (item.status === 'due_soon') return '🟡 DUE THIS YEAR';
-      return `✅ ${item.years_remaining || 0} yrs`;
+      const years = item.years_remaining || 0;
+      if (item.status === 'overdue') {
+        return `${Math.abs(years)} years overdue`;
+      }
+      if (item.status === 'due_soon') {
+        return `${years} years`;
+      }
+      return `${years} years`;
     }
     return 'N/A';
+  };
+
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'overdue':
+        return '🔴 OVERDUE';
+      case 'due_soon':
+        return '🟡 DUE SOON';
+      case 'serviced':
+        return '🟢 SERVICED';
+      case 'no_maintenance':
+        return '⚪ NO MAINTENANCE';
+      default:
+        return status;
+    }
   };
 
   const getStatusStyle = (status) => {
     switch(status) {
       case 'overdue':
-        return { color: '#e74c3c', bg: '#fdeaea', text: '🔴 OVERDUE' };
+        return { color: '#e74c3c', bg: '#fdeaea' };
       case 'due_soon':
-        return { color: '#f39c12', bg: '#fef5e7', text: '🟡 DUE SOON' };
+        return { color: '#f39c12', bg: '#fef5e7' };
       case 'serviced':
-        return { color: '#27ae60', bg: '#eafaf1', text: '✅ SERVICED' };
+        return { color: '#27ae60', bg: '#eafaf1' };
       case 'no_maintenance':
-        return { color: '#95a5a6', bg: '#f5f5f5', text: '⚪ NO MAINTENANCE' };
+        return { color: '#95a5a6', bg: '#f5f5f5' };
       default:
-        return { color: '#95a5a6', bg: '#f5f5f5', text: status };
+        return { color: '#95a5a6', bg: '#f5f5f5' };
     }
-  };
-
-  const getNextServiceColumn = (item) => {
-    if (item.maintenance_type === 'hour') {
-      const hrs = item.remaining_hours || 0;
-      const days = Math.ceil(hrs / 10);
-      if (item.status === 'overdue') {
-        return `🔴 OVERDUE by ${Math.abs(hrs)} hours (Was due: ${item.next_due_display})`;
-      }
-      if (item.status === 'due_soon') {
-        return `⚠️ DUE SOON: ${item.next_due_display} (${hrs} hours / ${days} days remaining)`;
-      }
-      return `📅 ${item.next_due_display} (${hrs} hours / ${days} days remaining)`;
-    } else if (item.maintenance_type === 'month') {
-      const days = item.days_remaining || 0;
-      const weeks = (days / 7).toFixed(1);
-      if (item.status === 'overdue') {
-        return `🔴 OVERDUE by ${item.daysOverdue || 0} days (Was due: ${item.next_due_display})`;
-      }
-      if (item.status === 'due_soon') {
-        return `⚠️ DUE SOON: ${item.next_due_display} (${days} days / ${weeks} weeks remaining)`;
-      }
-      return `📅 ${item.next_due_display} (${days} days / ${weeks} weeks remaining)`;
-    } else if (item.maintenance_type === 'year') {
-      if (item.status === 'overdue') {
-        return `🔴 OVERDUE: Service was due in ${item.next_due_display}`;
-      }
-      if (item.status === 'due_soon') {
-        return `⚠️ DUE SOON: Service due ${item.next_due_display} (${item.days_remaining_year || 0} days remaining)`;
-      }
-      return `📅 Year ${item.next_due_display} (${item.years_remaining || 0} years remaining)`;
-    }
-    return 'No schedule';
   };
 
   if (loading) {
@@ -216,7 +202,7 @@ const Dashboard = ({ token, user }) => {
         </div>
       </div>
 
-      {/* Low Stock Alerts Section */}
+      {/* Low Stock Parts Table */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -259,7 +245,7 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Section - Updated with same info as GSE Maintenance table */}
+      {/* Maintenance Alerts Table - Simplified format matching picture */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -281,8 +267,6 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Equipment</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Type</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Maintenance Type</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Last Service</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Next Service</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
                 </tr>
@@ -291,25 +275,18 @@ const Dashboard = ({ token, user }) => {
                 {maintenanceAlerts.map(item => {
                   const statusStyle = getStatusStyle(item.status);
                   const remainingDisplay = getRemainingDisplay(item);
-                  const nextServiceDisplay = getNextServiceColumn(item);
-                  const lastServiceDisplay = item.current_service_display || item.last_service_date || item.last_service_year || 'Not recorded';
+                  const statusText = getStatusText(item.status);
                   
                   return (
                     <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
                       <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{item.equipment_name}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.equipment_type || '-'}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
-                        {lastServiceDisplay}
-                      </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', fontWeight: 'bold', color: statusStyle.color }}>
-                        {nextServiceDisplay}
-                      </td>
                       <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
                         {remainingDisplay}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                        <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
+                        <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusText}</span>
                       </td>
                     </tr>
                   );
