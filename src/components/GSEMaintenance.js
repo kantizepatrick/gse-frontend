@@ -415,7 +415,7 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Record Service Modal - UPDATED with both Date and Hours fields */}
+      {/* Record Service Modal */}
       {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -441,7 +441,7 @@ const GSEMaintenance = ({ token, user }) => {
                 </small>
               </div>
               
-              {/* CURRENT HOURS FIELD (Hour-based only) */}
+              {/* CURRENT HOURS FIELD */}
               {showServiceForm.maintenance_type === 'hour' && (
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
@@ -508,47 +508,41 @@ const GSEMaintenance = ({ token, user }) => {
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
                 <strong style={{ fontSize: '14px' }}>📋 Calculation Preview:</strong><br />
                 {showServiceForm.maintenance_type === 'hour' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Date: <strong>{serviceData.service_date}</strong><br />
-                      Current Hours: <strong>{serviceData.current_hours || 0} hrs</strong><br />
-                      Interval: <strong>{serviceData.service_interval_hours} hours</strong><br />
-                      → Next service due after <strong>{Math.ceil(serviceData.service_interval_hours / 10)} days</strong><br />
-                      → Estimated next service date: <strong>{
-                        (() => {
-                          const date = new Date(serviceData.service_date);
-                          date.setDate(date.getDate() + Math.ceil(serviceData.service_interval_hours / 10));
-                          return date.toLocaleDateString();
-                        })()
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Date: <strong>{serviceData.service_date}</strong><br />
+                    Current Hours: <strong>{serviceData.current_hours || 0} hrs</strong><br />
+                    Interval: <strong>{serviceData.service_interval_hours} hours</strong><br />
+                    → Next service due after <strong>{Math.ceil(serviceData.service_interval_hours / 10)} days</strong><br />
+                    → Estimated next service date: <strong>{
+                      (() => {
+                        const date = new Date(serviceData.service_date);
+                        date.setDate(date.getDate() + Math.ceil(serviceData.service_interval_hours / 10));
+                        return date.toLocaleDateString();
+                      })()
+                    }</strong>
+                  </span>
                 )}
                 {showServiceForm.maintenance_type === 'month' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Date: <strong>{serviceData.service_date}</strong><br />
-                      Interval: <strong>{serviceData.service_interval_months} months</strong><br />
-                      → Next service due on: <strong>{
-                        (() => {
-                          const date = new Date(serviceData.service_date);
-                          date.setMonth(date.getMonth() + serviceData.service_interval_months);
-                          return date.toLocaleDateString();
-                        })()
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Date: <strong>{serviceData.service_date}</strong><br />
+                    Interval: <strong>{serviceData.service_interval_months} months</strong><br />
+                    → Next service due on: <strong>{
+                      (() => {
+                        const date = new Date(serviceData.service_date);
+                        date.setMonth(date.getMonth() + serviceData.service_interval_months);
+                        return date.toLocaleDateString();
+                      })()
+                    }</strong>
+                  </span>
                 )}
                 {showServiceForm.maintenance_type === 'year' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Year: <strong>{new Date(serviceData.service_date).getFullYear()}</strong><br />
-                      Interval: <strong>{serviceData.service_interval_years} years</strong><br />
-                      → Next service due in year: <strong>{
-                        new Date(serviceData.service_date).getFullYear() + serviceData.service_interval_years
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Year: <strong>{new Date(serviceData.service_date).getFullYear()}</strong><br />
+                    Interval: <strong>{serviceData.service_interval_years} years</strong><br />
+                    → Next service due in year: <strong>{
+                      new Date(serviceData.service_date).getFullYear() + serviceData.service_interval_years
+                    }</strong>
+                  </span>
                 )}
               </div>
               
@@ -586,7 +580,7 @@ const GSEMaintenance = ({ token, user }) => {
               </div>
               
               <div style={{ display: 'flex', gap: '15px' }}>
-                <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', flex: 1, fontSize: '16px, fontWeight: 'bold' }}>
+                <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', flex: 1, fontSize: '16px', fontWeight: 'bold' }}>
                   {loading ? 'Saving...' : '✅ Record Service & Calculate Next Due'}
                 </button>
                 <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_interval_hours: 250, service_interval_months: 6, service_interval_years: 1, service_date: new Date().toISOString().split('T')[0], current_hours: '' }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px' }}>
