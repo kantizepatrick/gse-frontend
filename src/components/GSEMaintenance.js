@@ -298,7 +298,6 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       </div>
 
-      {/* Status Filter Buttons */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
         <button onClick={() => setFilter('all')} style={{ backgroundColor: filter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Status</button>
         <button onClick={() => setFilter('overdue')} style={{ backgroundColor: filter === 'overdue' ? '#e74c3c' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>🔴 Overdue</button>
@@ -307,7 +306,6 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setFilter('no_maintenance')} style={{ backgroundColor: filter === 'no_maintenance' ? '#95a5a6' : '#bdc3c7', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⚪ No Maintenance</button>
       </div>
       
-      {/* Maintenance Type Filter Buttons */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button onClick={() => setMaintenanceTypeFilter('all')} style={{ backgroundColor: maintenanceTypeFilter === 'all' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>All Types</button>
         <button onClick={() => setMaintenanceTypeFilter('hour')} style={{ backgroundColor: maintenanceTypeFilter === 'hour' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⏱️ Hour-based</button>
@@ -316,7 +314,6 @@ const GSEMaintenance = ({ token, user }) => {
         <button onClick={() => setMaintenanceTypeFilter('none')} style={{ backgroundColor: maintenanceTypeFilter === 'none' ? '#3498db' : '#95a5a6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>⭕ No Maintenance</button>
       </div>
 
-      {/* Info Banner */}
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
           <strong>📊 Features:</strong><br />
@@ -330,7 +327,6 @@ const GSEMaintenance = ({ token, user }) => {
       {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb' }}>{message}</div>}
       {error && <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #f5c6cb' }}>{error}</div>}
 
-      {/* Add Equipment Form */}
       {showAddForm && (
         <form onSubmit={handleAddEquipment} style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px' }}>
           <h3>Add GSE Equipment</h3>
@@ -393,7 +389,6 @@ const GSEMaintenance = ({ token, user }) => {
         </form>
       )}
 
-      {/* Main Equipment Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -407,7 +402,7 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </table>
+            </tr>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
@@ -437,11 +432,9 @@ const GSEMaintenance = ({ token, user }) => {
                     <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {/* Edit button - visible to ALL users */}
                     <button onClick={() => openEditModal(eq)} style={{ backgroundColor: '#ffc107', color: '#333', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
                       ✏️ Edit
                     </button>
-                    
                     {!isNoMaintenance && (
                       <button onClick={() => {
                         setShowServiceForm(eq);
@@ -457,7 +450,6 @@ const GSEMaintenance = ({ token, user }) => {
                         🔧 Record Service
                       </button>
                     )}
-                    
                     {(user?.role === 'admin' || user?.role === 'manager') && (
                       <button onClick={() => handleDeleteEquipment(eq.id, eq.equipment_name)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
                         🗑️ Delete
@@ -471,7 +463,6 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
-      {/* Edit Modal - visible to ALL users */}
       {editMode && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -559,7 +550,6 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       )}
 
-      {/* Record Service Modal */}
       {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
