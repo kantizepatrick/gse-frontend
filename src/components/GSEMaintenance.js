@@ -284,6 +284,8 @@ const GSEMaintenance = ({ token, user }) => {
     return true;
   });
 
+  const canDelete = user?.role === 'admin' || user?.role === 'manager';
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
@@ -316,11 +318,11 @@ const GSEMaintenance = ({ token, user }) => {
 
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>📊 Features:</strong><br />
-          ✅ <strong>SERVICED:</strong> Equipment is up to date<br />
-          🟡 <strong>DUE SOON:</strong> Service needed within 4 days or 40 hours<br />
-          🔴 <strong>OVERDUE:</strong> Service date has passed<br />
-          ✏️ <strong>Edit Button (ALL users):</strong> Fix mistakes - change maintenance type or values
+          <strong>📊 Permissions:</strong><br />
+          ✏️ <strong>Edit Equipment:</strong> ALL users<br />
+          🔧 <strong>Record Service:</strong> ALL users<br />
+          ➕ <strong>Add Equipment:</strong> ALL users<br />
+          🗑️ <strong>Delete Equipment:</strong> Admin/Manager only
         </p>
       </div>
 
@@ -450,7 +452,7 @@ const GSEMaintenance = ({ token, user }) => {
                         🔧 Record Service
                       </button>
                     )}
-                    {(user?.role === 'admin' || user?.role === 'manager') && (
+                    {canDelete && (
                       <button onClick={() => handleDeleteEquipment(eq.id, eq.equipment_name)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
                         🗑️ Delete
                       </button>
