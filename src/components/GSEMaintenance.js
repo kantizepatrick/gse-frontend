@@ -79,14 +79,51 @@ const GSEMaintenance = ({ token, user }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/gse-maintenance`, newEquipment, {
+      const payload = {
+        equipment_name: newEquipment.equipment_name,
+        equipment_type: newEquipment.equipment_type,
+        maintenance_type: newEquipment.maintenance_type,
+        service_performed: newEquipment.service_performed,
+        technician_name: newEquipment.technician_name,
+        notes: newEquipment.notes
+      };
+      
+      if (newEquipment.maintenance_type === 'hour') {
+        payload.service_interval_hours = parseInt(newEquipment.service_interval_hours);
+        payload.last_service_date = newEquipment.last_service_date;
+        payload.last_service_hours = 0;
+      } else if (newEquipment.maintenance_type === 'month') {
+        payload.service_interval_months = parseInt(newEquipment.service_interval_months);
+        payload.last_service_date = newEquipment.last_service_date;
+      } else if (newEquipment.maintenance_type === 'year') {
+        payload.service_interval_years = parseInt(newEquipment.service_interval_years);
+        payload.last_service_year = parseInt(newEquipment.last_service_year);
+        payload.last_service_date = newEquipment.last_service_date;
+      }
+      
+      await axios.post(`${API_URL}/api/gse-maintenance`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       setMessage('✅ Equipment added to maintenance schedule!');
       setShowAddForm(false);
+      setNewEquipment({
+        equipment_name: '',
+        equipment_type: '',
+        maintenance_type: 'hour',
+        service_interval_hours: 250,
+        last_service_date: new Date().toISOString().split('T')[0],
+        service_interval_months: 6,
+        last_service_year: new Date().getFullYear(),
+        service_interval_years: 1,
+        service_performed: '',
+        technician_name: '',
+        notes: ''
+      });
       fetchEquipment();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
+      console.error('Add equipment error:', err);
       setError(err.response?.data?.error || 'Error adding equipment');
       setTimeout(() => setError(''), 3000);
     } finally {
@@ -286,9 +323,8 @@ const GSEMaintenance = ({ token, user }) => {
 
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
 
-  // Function to calculate next service date preview
   const getNextServicePreview = () => {
-    if (!showServiceForm) return '';
+    if (!showServiceForm) return null;
     
     if (showServiceForm.maintenance_type === 'hour') {
       const daysToAdd = Math.ceil(serviceData.service_interval_hours / 10);
@@ -296,8 +332,7 @@ const GSEMaintenance = ({ token, user }) => {
       nextDate.setDate(nextDate.getDate() + daysToAdd);
       return {
         daysToAdd: daysToAdd,
-        nextDate: nextDate.toLocaleDateString(),
-        targetHours: (parseInt(serviceData.current_hours) || 0) + parseInt(serviceData.service_interval_hours)
+        nextDate: nextDate.toLocaleDateString()
       };
     } else if (showServiceForm.maintenance_type === 'month') {
       const nextDate = new Date(serviceData.service_date);
@@ -585,8 +620,7 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       )}
 
-      {/* Record Service Modal WITH Calculation Preview for ALL types */}
-      {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
+      {showServiceForm && showServiceForm.maintenance_type !== 'none' && preview && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3>🔧 Record Service for: {showServiceForm.equipment_name}</h3>
@@ -594,7 +628,6 @@ const GSEMaintenance = ({ token, user }) => {
             
             <form onSubmit={(e) => handleRecordService(e, showServiceForm.id)}>
               
-              {/* Service Date Field */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>📅 Service Date *</label>
                 <input 
@@ -604,12 +637,9 @@ const GSEMaintenance = ({ token, user }) => {
                   onChange={(e) => setServiceData({...serviceData, service_date: e.target.value})} 
                   style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} 
                 />
-                <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
-                  The date when service was performed
-                </small>
+                <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>The date when service was performed</small>
               </div>
               
-              {/* Current Hours Field (Hour-based only) */}
               {showServiceForm.maintenance_type === 'hour' && (
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>⏱️ Current Hours (Meter Reading) *</label>
@@ -621,13 +651,10 @@ const GSEMaintenance = ({ token, user }) => {
                     placeholder="Enter current hour meter reading" 
                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} 
                   />
-                  <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
-                    Current hour meter reading at time of service
-                  </small>
+                  <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>Current hour meter reading at time of service</small>
                 </div>
               )}
               
-              {/* Service Interval Settings */}
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff8f0', borderRadius: '8px', border: '1px solid #ffe0b3' }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#e65100' }}>⚙️ Service Interval Settings (Optional)</h4>
                 {showServiceForm.maintenance_type === 'hour' && (
@@ -670,61 +697,35 @@ const GSEMaintenance = ({ token, user }) => {
                 )}
               </div>
               
-              {/* CALCULATION PREVIEW - For ALL maintenance types */}
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
                 <strong style={{ fontSize: '14px' }}>📋 Calculation Preview:</strong><br />
                 {showServiceForm.maintenance_type === 'hour' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Date: <strong>{serviceData.service_date}</strong><br />
-                      Current Hours: <strong>{serviceData.current_hours || 0} hrs</strong><br />
-                      Interval: <strong>{serviceData.service_interval_hours} hours</strong><br />
-                      → Next service due after <strong>{Math.ceil(serviceData.service_interval_hours / 10)} days</strong><br />
-                      → Estimated next service date: <strong>{
-                        (() => {
-                          const date = new Date(serviceData.service_date);
-                          date.setDate(date.getDate() + Math.ceil(serviceData.service_interval_hours / 10));
-                          return date.toLocaleDateString();
-                        })()
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Date: <strong>{serviceData.service_date}</strong><br />
+                    Current Hours: <strong>{serviceData.current_hours || 0} hrs</strong><br />
+                    Interval: <strong>{serviceData.service_interval_hours} hours</strong><br />
+                    → Next service due after <strong>{Math.ceil(serviceData.service_interval_hours / 10)} days</strong><br />
+                    → Estimated next service date: <strong>{preview.nextDate}</strong>
+                  </span>
                 )}
                 {showServiceForm.maintenance_type === 'month' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Date: <strong>{serviceData.service_date}</strong><br />
-                      Interval: <strong>{serviceData.service_interval_months} months</strong><br />
-                      → Next service due after <strong>{serviceData.service_interval_months} month(s)</strong><br />
-                      → Estimated next service date: <strong>{
-                        (() => {
-                          const date = new Date(serviceData.service_date);
-                          date.setMonth(date.getMonth() + serviceData.service_interval_months);
-                          return date.toLocaleDateString();
-                        })()
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Date: <strong>{serviceData.service_date}</strong><br />
+                    Interval: <strong>{serviceData.service_interval_months} months</strong><br />
+                    → Next service due after <strong>{serviceData.service_interval_months} month(s)</strong><br />
+                    → Estimated next service date: <strong>{preview.nextDate}</strong>
+                  </span>
                 )}
                 {showServiceForm.maintenance_type === 'year' && (
-                  <>
-                    <span style={{ fontSize: '13px' }}>
-                      Service Date: <strong>{serviceData.service_date}</strong><br />
-                      Interval: <strong>{serviceData.service_interval_years} years</strong><br />
-                      → Next service due after <strong>{serviceData.service_interval_years} year(s)</strong><br />
-                      → Estimated next service date: <strong>{
-                        (() => {
-                          const date = new Date(serviceData.service_date);
-                          date.setFullYear(date.getFullYear() + serviceData.service_interval_years);
-                          return date.toLocaleDateString();
-                        })()
-                      }</strong>
-                    </span>
-                  </>
+                  <span style={{ fontSize: '13px' }}>
+                    Service Date: <strong>{serviceData.service_date}</strong><br />
+                    Interval: <strong>{serviceData.service_interval_years} years</strong><br />
+                    → Next service due after <strong>{serviceData.service_interval_years} year(s)</strong><br />
+                    → Estimated next service date: <strong>{preview.nextDate}</strong>
+                  </span>
                 )}
               </div>
               
-              {/* Service Details */}
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Performed *</label>
                 <input 
