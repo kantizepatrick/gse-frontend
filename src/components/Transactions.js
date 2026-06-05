@@ -52,8 +52,8 @@ const Transactions = ({ token }) => {
       totalIssues: issues.length,
       totalQuantityReceived: receives.reduce((sum, t) => sum + (Number(t.quantity) || 0), 0),
       totalQuantityIssued: issues.reduce((sum, t) => sum + (Number(t.quantity) || 0), 0),
-      preventiveCount: data.filter(t => t.notes && t.notes.includes('Preventive')).length,
-      correctiveCount: data.filter(t => t.notes && t.notes.includes('Corrective')).length,
+      preventiveCount: data.filter(t => t.notes && t.notes.toLowerCase().includes('preventive')).length,
+      correctiveCount: data.filter(t => t.notes && t.notes.toLowerCase().includes('corrective')).length,
       uniqueParts: uniqueParts.length,
       uniqueTechnicians: uniqueTechnicians.length,
       uniqueGSE: uniqueGSE.length
@@ -157,7 +157,7 @@ const Transactions = ({ token }) => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-        <h2>📜 Transaction History & Reports</h2>
+        <h2>📜 Transaction History</h2>
         <button 
           onClick={exportToCSV}
           style={{
@@ -251,51 +251,6 @@ const Transactions = ({ token }) => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '15px',
-        marginBottom: '20px'
-      }}>
-        <div style={{ backgroundColor: '#27ae60', color: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '24px' }}>{summary.totalReceives}</h3>
-          <p style={{ margin: '5px 0 0', fontSize: '12px' }}>📥 Receives</p>
-          <small>{summary.totalQuantityReceived} units</small>
-        </div>
-        <div style={{ backgroundColor: '#e74c3c', color: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '24px' }}>{summary.totalIssues}</h3>
-          <p style={{ margin: '5px 0 0', fontSize: '12px' }}>📤 Issues</p>
-          <small>{summary.totalQuantityIssued} units</small>
-        </div>
-        <div style={{ backgroundColor: '#3498db', color: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '24px' }}>{summary.uniqueParts}</h3>
-          <p style={{ margin: '5px 0 0', fontSize: '12px' }}>🔧 Unique Parts</p>
-        </div>
-        <div style={{ backgroundColor: '#f39c12', color: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '24px' }}>{summary.uniqueGSE}</h3>
-          <p style={{ margin: '5px 0 0', fontSize: '12px' }}>🚜 GSE Units</p>
-        </div>
-      </div>
-
-      {/* Maintenance Summary */}
-      <div style={{
-        display: 'flex',
-        gap: '15px',
-        marginBottom: '20px',
-        flexWrap: 'wrap'
-      }}>
-        <div style={{ backgroundColor: '#eafaf1', padding: '10px 15px', borderRadius: '8px', borderLeft: '4px solid #27ae60' }}>
-          <span style={{ fontWeight: 'bold' }}>🔧 Preventive Maintenance:</span> {summary.preventiveCount} services
-        </div>
-        <div style={{ backgroundColor: '#fdeaea', padding: '10px 15px', borderRadius: '8px', borderLeft: '4px solid #e74c3c' }}>
-          <span style={{ fontWeight: 'bold' }}>🛠️ Corrective Maintenance:</span> {summary.correctiveCount} services
-        </div>
-        <div style={{ backgroundColor: '#e8f4fd', padding: '10px 15px', borderRadius: '8px', borderLeft: '4px solid #3498db' }}>
-          <span style={{ fontWeight: 'bold' }}>👨‍🔧 Technicians:</span> {summary.uniqueTechnicians} active
-        </div>
-      </div>
-
       {/* Transactions Table */}
       {filteredTransactions.length === 0 ? (
         <p style={{ color: '#666', textAlign: 'center', padding: '40px' }}>No transactions found.</p>
@@ -362,7 +317,7 @@ const Transactions = ({ token }) => {
                     </td>
                     <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                       {trans.technician_name || '-'}
-                    </td>
+                    <td>
                     <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                       {trans.work_order || '-'}
                     </td>
@@ -380,7 +335,7 @@ const Transactions = ({ token }) => {
         </div>
       )}
 
-      {/* Detailed Summary Footer */}
+      {/* Detailed Report Footer */}
       {filteredTransactions.length > 0 && (
         <div style={{
           marginTop: '20px',
@@ -389,7 +344,7 @@ const Transactions = ({ token }) => {
           borderRadius: '8px',
           border: '1px solid #ddd'
         }}>
-          <h4>📊 Detailed Report Summary</h4>
+          <h4>📊 Report Summary</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
             <div>
               <strong>Showing:</strong> {filteredTransactions.length} of {transactions.length} transactions
@@ -408,15 +363,7 @@ const Transactions = ({ token }) => {
               {' '}{summary.totalQuantityReceived - summary.totalQuantityIssued} units
             </div>
             <div>
-              <strong>Most Active:</strong> 
-              {' '}{(() => {
-                const userCounts = {};
-                filteredTransactions.forEach(t => {
-                  userCounts[t.created_by] = (userCounts[t.created_by] || 0) + 1;
-                });
-                const topUser = Object.entries(userCounts).sort((a, b) => b[1] - a[1])[0];
-                return topUser ? `${topUser[0]} (${topUser[1]} transactions)` : 'N/A';
-              })()}
+              <strong>Maintenance:</strong> 🔧 {summary.preventiveCount} Preventive | 🛠️ {summary.correctiveCount} Corrective
             </div>
           </div>
         </div>
