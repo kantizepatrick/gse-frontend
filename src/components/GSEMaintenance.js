@@ -5,6 +5,7 @@ const GSEMaintenance = ({ token, user }) => {
   const [equipment, setEquipment] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(null);
+  const [showAttachmentsModal, setShowAttachmentsModal] = useState(null);
   const [editMode, setEditMode] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -14,6 +15,10 @@ const GSEMaintenance = ({ token, user }) => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [checklist, setChecklist] = useState([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [hoursUpdate, setHoursUpdate] = useState({});
+  const [showHoursModal, setShowHoursModal] = useState(null);
   
   const [newEquipment, setNewEquipment] = useState({
     equipment_name: '',
@@ -81,14 +86,74 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
-  const fetchChecklist = async (maintenanceId) => {
+  const fetchAttachments = async (maintenanceId) => {
     try {
-      const response = await axios.get(`${API_URL}/api/maintenance-checklist/${maintenanceId}`, {
+      const response = await axios.get(`${API_URL}/api/maintenance-attachments/${maintenanceId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      return response.data;
+      setAttachments(response.data);
     } catch (err) {
-      return [];
+      console.error('Error fetching attachments:', err);
+    }
+  };
+
+  const handleFileUpload = async (maintenanceId, file) => {
+    if (!file) return;
+    
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      await axios.post(`${API_URL}/api/maintenance-attachment/${maintenanceId}`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setMessage('✅ File uploaded successfully!');
+      fetchAttachments(maintenanceId);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error uploading file');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (window.confirm('Delete this attachment?')) {
+      try {
+        await axios.delete(`${API_URL}/api/maintenance-attachment/${attachmentId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setMessage('✅ Attachment deleted successfully!');
+        if (showAttachmentsModal) {
+          fetchAttachments(showAttachmentsModal.id);
+        }
+        setTimeout(() => setMessage(''), 3000);
+      } catch (err) {
+        setError(err.response?.data?.error || 'Error deleting attachment');
+        setTimeout(() => setError(''), 3000);
+      }
+    }
+  };
+
+  const updateCurrentHours = async (equipId, currentHours) => {
+    try {
+      await axios.put(`${API_URL}/api/gse-maintenance/${equipId}/hours`, {
+        current_hours: parseInt(currentHours)
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMessage('✅ Hours updated successfully!');
+      fetchEquipment();
+      setShowHoursModal(null);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error updating hours');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -102,8 +167,7 @@ const GSEMaintenance = ({ token, user }) => {
         maintenance_type: newEquipment.maintenance_type,
         service_performed: newEquipment.service_performed,
         technician_name: newEquipment.technician_name,
-        notes: newEquipment.notes,
-        checklist: checklist.filter(item => item.trim())
+        notes: newEquipment.notes
       };
       
       if (newEquipment.maintenance_type === 'hour') {
@@ -396,11 +460,12 @@ const GSEMaintenance = ({ token, user }) => {
 
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>📊 Maintenance Types:</strong><br />
-          ⏱️ <strong>Hour-based:</strong> Can have BOTH hours threshold AND months interval (Dual Condition)<br />
+          <strong>📊 Maintenance Features:</strong><br />
+          ⏱️ <strong>Hour-based:</strong> Dual condition (Hours + Months) - alert on FIRST condition | Manual hour entry daily<br />
           📅 <strong>Month-based:</strong> Calendar months only | Due Soon ≤ 4 days<br />
           📆 <strong>Year-based:</strong> Full date support | Due Soon ≤ 30 days<br />
-          ✅ <strong>Checklist:</strong> Attach inspection checklist to any service record
+          📋 <strong>Checklist:</strong> Attach inspection checklist to service records<br />
+          📎 <strong>Attachments:</strong> Upload PDF, images, documents to any equipment
         </p>
       </div>
 
@@ -422,7 +487,7 @@ const GSEMaintenance = ({ token, user }) => {
             <div>
               <label style={{ fontWeight: 'bold' }}>Maintenance Type *</label>
               <select value={newEquipment.maintenance_type} onChange={(e) => setNewEquipment({...newEquipment, maintenance_type: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                <option value="hour">⏱️ Hour-based (10 hours/day)</option>
+                <option value="hour">⏱️ Hour-based (10 hours/day) + Optional Months</option>
                 <option value="month">📅 Month-based</option>
                 <option value="year">📆 Year-based</option>
                 <option value="none">⭕ No maintenance</option>
@@ -494,23 +559,6 @@ const GSEMaintenance = ({ token, user }) => {
             <textarea value={newEquipment.notes} onChange={(e) => setNewEquipment({...newEquipment, notes: e.target.value})} rows="2" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
           </div>
           
-          {/* Checklist for new equipment */}
-          <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
-            <label style={{ fontWeight: 'bold' }}>📋 Maintenance Checklist (Optional)</label>
-            <div style={{ marginTop: '5px' }}>
-              {checklist.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                  <span>✅ {item}</span>
-                  <button type="button" onClick={() => removeChecklistItem(setChecklist, checklist, idx)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '2px 8px', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                <input type="text" value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} placeholder="Add checklist item..." style={{ flex: 1, padding: '5px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                <button type="button" onClick={() => addChecklistItem(setChecklist, checklist)} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer' }}>Add</button>
-              </div>
-            </div>
-          </div>
-          
           <button type="submit" disabled={loading} style={{ marginTop: '15px', backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Add Equipment</button>
         </form>
       )}
@@ -523,8 +571,8 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Maint Type</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>📅 Last Service</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Current / Target</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>📊 Next Service</th>
-              <th style={{ border: '1px solid #ddd', padding: '12px' }}>Interval</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
@@ -542,19 +590,12 @@ const GSEMaintenance = ({ token, user }) => {
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                     {eq.current_service_display || eq.last_service_date || eq.last_service_year || 'Not recorded'}
                   </td>
+                  <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
+                    {eq.maintenance_type === 'hour' && `${eq.current_hours || 0} / ${eq.service_interval_hours || 0} hrs`}
+                    {eq.maintenance_type !== 'hour' && '-'}
+                  </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', fontWeight: 'bold', color: statusStyle.color === '#e74c3c' ? '#e74c3c' : (statusStyle.color === '#f39c12' ? '#f39c12' : '#0066cc') }}>
                     {eq.next_service_column || eq.next_due_display || 'Not scheduled'}
-                  </td>
-                  <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                    {eq.maintenance_type === 'hour' && (
-                      <>
-                        {eq.service_interval_hours || 250} hrs
-                        {eq.service_interval_months_for_hour > 0 && ` + ${eq.service_interval_months_for_hour} months`}
-                      </>
-                    )}
-                    {eq.maintenance_type === 'month' && `${eq.service_interval_months || 6} months`}
-                    {eq.maintenance_type === 'year' && `${eq.service_interval_years || 1} year(s)`}
-                    {eq.maintenance_type === 'none' && '-'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
                     {getRemainingDisplay(eq)}
@@ -564,6 +605,20 @@ const GSEMaintenance = ({ token, user }) => {
                     <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                    {eq.maintenance_type === 'hour' && (
+                      <button onClick={() => {
+                        setHoursUpdate({[eq.id]: eq.current_hours || 0});
+                        setShowHoursModal(eq);
+                      }} style={{ backgroundColor: '#ffc107', color: '#333', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
+                        📝 Update Hours
+                      </button>
+                    )}
+                    <button onClick={() => {
+                      setShowAttachmentsModal(eq);
+                      fetchAttachments(eq.id);
+                    }} style={{ backgroundColor: '#9b59b6', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
+                      📎 Files
+                    </button>
                     <button onClick={() => openEditModal(eq)} style={{ backgroundColor: '#ffc107', color: '#333', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
                       ✏️ Edit
                     </button>
@@ -576,7 +631,7 @@ const GSEMaintenance = ({ token, user }) => {
                           service_interval_months: eq.service_interval_months || 6,
                           service_interval_years: eq.service_interval_years || 1,
                           service_date: new Date().toISOString().split('T')[0],
-                          current_hours: eq.last_service_hours || 0,
+                          current_hours: eq.current_hours || 0,
                           checklist: []
                         });
                       }} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
@@ -595,6 +650,91 @@ const GSEMaintenance = ({ token, user }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Update Hours Modal */}
+      {showHoursModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '400px', maxWidth: '90%' }}>
+            <h3>📝 Update Current Hours</h3>
+            <p>Equipment: <strong>{showHoursModal.equipment_name}</strong></p>
+            <p>Target Hours: <strong>{showHoursModal.service_interval_hours} hrs</strong></p>
+            <p>Current Hours: <strong>{showHoursModal.current_hours} hrs</strong></p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>New Current Hours:</label>
+              <input 
+                type="number" 
+                value={hoursUpdate[showHoursModal.id] || showHoursModal.current_hours}
+                onChange={(e) => setHoursUpdate({...hoursUpdate, [showHoursModal.id]: e.target.value})}
+                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <button onClick={() => updateCurrentHours(showHoursModal.id, hoursUpdate[showHoursModal.id] || showHoursModal.current_hours)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', flex: 1 }}>
+                ✅ Update
+              </button>
+              <button onClick={() => setShowHoursModal(null)} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachments Modal */}
+      {showAttachmentsModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '500px', maxWidth: '90%', maxHeight: '80vh', overflowY: 'auto' }}>
+            <h3>📎 Attachments for: {showAttachmentsModal.equipment_name}</h3>
+            
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Upload New File:</label>
+              <input 
+                type="file" 
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    handleFileUpload(showAttachmentsModal.id, e.target.files[0]);
+                  }
+                }}
+                disabled={uploading}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              />
+              {uploading && <div style={{ marginTop: '10px', color: '#3498db' }}>Uploading...</div>}
+              <small style={{ color: '#666' }}>Supported: PDF, Images (JPG, PNG), Documents</small>
+            </div>
+            
+            <h4>Existing Attachments:</h4>
+            {attachments.length === 0 ? (
+              <p style={{ color: '#666' }}>No attachments yet.</p>
+            ) : (
+              <div>
+                {attachments.map(att => (
+                  <div key={att.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
+                    <div>
+                      <a href={`${API_URL}${att.file_path}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3498db', textDecoration: 'none' }}>
+                        📄 {att.original_filename}
+                      </a>
+                      <div style={{ fontSize: '11px', color: '#666' }}>
+                        Uploaded by {att.uploaded_by} on {new Date(att.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteAttachment(att.id)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
+                      🗑️ Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowAttachmentsModal(null); setAttachments([]); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editMode && (
@@ -799,7 +939,11 @@ const GSEMaintenance = ({ token, user }) => {
                   {serviceData.checklist.map((item, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
                       <span>✅ {item}</span>
-                      <button type="button" onClick={() => removeChecklistItem((newList) => setServiceData({...serviceData, checklist: newList}), serviceData.checklist, idx)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '2px 8px', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
+                      <button type="button" onClick={() => {
+                        const newList = [...serviceData.checklist];
+                        newList.splice(idx, 1);
+                        setServiceData({...serviceData, checklist: newList});
+                      }} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '2px 8px', borderRadius: '3px', cursor: 'pointer' }}>✖</button>
                     </div>
                   ))}
                   <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
