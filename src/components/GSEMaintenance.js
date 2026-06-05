@@ -44,6 +44,8 @@ const GSEMaintenance = ({ token, user }) => {
     current_hours: '',
     target_hours: '',
     months_interval: '',
+    service_interval_months: 6,
+    service_interval_years: 1,
     checklist: []
   });
 
@@ -259,6 +261,8 @@ const GSEMaintenance = ({ token, user }) => {
         current_hours: '',
         target_hours: '',
         months_interval: '',
+        service_interval_months: 6,
+        service_interval_years: 1,
         checklist: []
       });
       fetchEquipment();
@@ -574,7 +578,7 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </table>
+            </tr>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
@@ -981,7 +985,7 @@ const GSEMaintenance = ({ token, user }) => {
                 <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', flex: 1, fontSize: '16px', fontWeight: 'bold' }}>
                   {loading ? 'Saving...' : '✅ Record Service'}
                 </button>
-                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_date: new Date().toISOString().split('T')[0], current_hours: '', target_hours: '', months_interval: '', checklist: [] }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px' }}>
+                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_date: new Date().toISOString().split('T')[0], current_hours: '', target_hours: '', months_interval: '', service_interval_months: 6, service_interval_years: 1, checklist: [] }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px' }}>
                   Cancel
                 </button>
               </div>
