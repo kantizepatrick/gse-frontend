@@ -95,17 +95,14 @@ const Transactions = ({ token }) => {
   };
 
   const filteredTransactions = transactions.filter(trans => {
-    // Filter by type
     if (filter !== 'all' && trans.transaction_type !== filter) return false;
     
-    // Filter by date range
     if (dateRange.start) {
       const transDate = new Date(trans.created_at).toISOString().split('T')[0];
       if (dateRange.start && transDate < dateRange.start) return false;
       if (dateRange.end && transDate > dateRange.end) return false;
     }
     
-    // Filter by search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -317,7 +314,7 @@ const Transactions = ({ token }) => {
                     </td>
                     <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                       {trans.technician_name || '-'}
-                    <td>
+                    </td>
                     <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
                       {trans.work_order || '-'}
                     </td>
@@ -335,7 +332,7 @@ const Transactions = ({ token }) => {
         </div>
       )}
 
-      {/* Detailed Report Footer */}
+      {/* Report Footer */}
       {filteredTransactions.length > 0 && (
         <div style={{
           marginTop: '20px',
@@ -364,6 +361,12 @@ const Transactions = ({ token }) => {
             </div>
             <div>
               <strong>Maintenance:</strong> 🔧 {summary.preventiveCount} Preventive | 🛠️ {summary.correctiveCount} Corrective
+            </div>
+            <div>
+              <strong>Total Receives:</strong> {summary.totalReceives} ({summary.totalQuantityReceived} units)
+            </div>
+            <div>
+              <strong>Total Issues:</strong> {summary.totalIssues} ({summary.totalQuantityIssued} units)
             </div>
           </div>
         </div>
