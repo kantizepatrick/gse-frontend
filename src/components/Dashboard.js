@@ -74,66 +74,47 @@ const Dashboard = ({ token, user }) => {
     }
   };
 
+  // FIXED: Shows only hours, no conversion to days
   const getRemainingDisplay = (item) => {
     if (item.maintenance_type === 'hour') {
       const hrs = item.remaining_hours || 0;
-      const days = Math.ceil(hrs / 10);
       if (item.status === 'overdue') {
         return `${Math.abs(hrs)} hours overdue`;
       }
       if (item.status === 'due_soon') {
-        return `${hrs} hours (${days} days)`;
+        return `${hrs} hours remaining`;
       }
-      return `${hrs} hours (${days} days)`;
+      return `${hrs} hours remaining`;
     } else if (item.maintenance_type === 'month') {
       const days = item.days_remaining || 0;
       if (item.status === 'overdue') {
         return `${item.daysOverdue || 0} days overdue`;
       }
       if (item.status === 'due_soon') {
-        return `${days} days`;
+        return `${days} days remaining`;
       }
-      return `${days} days`;
+      return `${days} days remaining`;
     } else if (item.maintenance_type === 'year') {
       const years = item.years_remaining || 0;
       if (item.status === 'overdue') {
         return `${Math.abs(years)} years overdue`;
       }
       if (item.status === 'due_soon') {
-        return `${years} years`;
+        return `${years} years remaining`;
       }
-      return `${years} years`;
+      return `${years} years remaining`;
     }
     return 'N/A';
-  };
-
-  const getStatusText = (status) => {
-    switch(status) {
-      case 'overdue':
-        return '🔴 OVERDUE';
-      case 'due_soon':
-        return '🟡 DUE SOON';
-      case 'serviced':
-        return '🟢 SERVICED';
-      case 'no_maintenance':
-        return '⚪ NO MAINTENANCE';
-      default:
-        return status;
-    }
   };
 
   const getStatusStyle = (status) => {
     switch(status) {
       case 'overdue':
-        return { color: '#e74c3c', bg: '#fdeaea' };
+        return { color: '#e74c3c', bg: '#fdeaea', text: '🔴 OVERDUE' };
       case 'due_soon':
-        return { color: '#f39c12', bg: '#fef5e7' };
-      case 'serviced':
-        return { color: '#27ae60', bg: '#eafaf1' };
-      case 'no_maintenance':
-        return { color: '#95a5a6', bg: '#f5f5f5' };
+        return { color: '#f39c12', bg: '#fef5e7', text: '🟡 DUE SOON' };
       default:
-        return { color: '#95a5a6', bg: '#f5f5f5' };
+        return { color: '#95a5a6', bg: '#f5f5f5', text: status };
     }
   };
 
@@ -202,7 +183,7 @@ const Dashboard = ({ token, user }) => {
         </div>
       </div>
 
-      {/* Low Stock Parts Table */}
+      {/* Low Stock Alerts Section */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -245,7 +226,7 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Table - Simplified format matching picture */}
+      {/* Maintenance Alerts Section - Simplified */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -275,7 +256,6 @@ const Dashboard = ({ token, user }) => {
                 {maintenanceAlerts.map(item => {
                   const statusStyle = getStatusStyle(item.status);
                   const remainingDisplay = getRemainingDisplay(item);
-                  const statusText = getStatusText(item.status);
                   
                   return (
                     <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
@@ -286,7 +266,7 @@ const Dashboard = ({ token, user }) => {
                         {remainingDisplay}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                        <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusText}</span>
+                        <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
                       </td>
                     </tr>
                   );
