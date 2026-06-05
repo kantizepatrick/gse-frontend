@@ -379,19 +379,41 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
+  // UPDATED: Removed 10 hours/day conversion - shows hours and days separately
   const getRemainingDisplay = (eq) => {
     if (eq.maintenance_type === 'none') {
       return '⚪ No maintenance';
     } else if (eq.maintenance_type === 'hour') {
       const hrs = eq.remaining_hours || 0;
-      const days = Math.ceil(hrs / 10);
+      const days = eq.days_remaining || 0;
       if (eq.status === 'overdue') {
-        return `🔴 ${Math.abs(hrs)} hrs overdue`;
+        if (hrs > 0 && days > 0) {
+          return `🔴 ${Math.abs(hrs)} hrs overdue / ${Math.abs(days)} days overdue`;
+        } else if (hrs > 0) {
+          return `🔴 ${Math.abs(hrs)} hrs overdue`;
+        } else if (days > 0) {
+          return `🔴 ${Math.abs(days)} days overdue`;
+        }
+        return '🔴 OVERDUE';
       }
       if (eq.status === 'due_soon') {
-        return `🟡 ${hrs} hrs (${days} days) - DUE SOON!`;
+        if (hrs > 0 && days > 0) {
+          return `🟡 ${hrs} hrs remaining / ${days} days remaining - DUE SOON!`;
+        } else if (hrs > 0) {
+          return `🟡 ${hrs} hrs remaining - DUE SOON!`;
+        } else if (days > 0) {
+          return `🟡 ${days} days remaining - DUE SOON!`;
+        }
+        return '🟡 DUE SOON!';
       }
-      return `✅ ${hrs} hrs (${days} days)`;
+      if (hrs > 0 && days > 0) {
+        return `✅ ${hrs} hrs remaining / ${days} days remaining`;
+      } else if (hrs > 0) {
+        return `✅ ${hrs} hrs remaining`;
+      } else if (days > 0) {
+        return `✅ ${days} days remaining`;
+      }
+      return '✅ Up to date';
     } else if (eq.maintenance_type === 'month') {
       const days = eq.days_remaining || 0;
       const weeks = (days / 7).toFixed(1);
@@ -605,7 +627,7 @@ const GSEMaintenance = ({ token, user }) => {
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
-                  </td>
+                  </tr>
                   <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                     {eq.maintenance_type === 'hour' && (
                       <button onClick={() => {
@@ -645,7 +667,7 @@ const GSEMaintenance = ({ token, user }) => {
                       </button>
                     )}
                   </td>
-                </tr>
+                <tr>
               );
             })}
           </tbody>
