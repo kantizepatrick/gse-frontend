@@ -74,37 +74,96 @@ const Dashboard = ({ token, user }) => {
     }
   };
 
-  // FIXED: Shows only hours, no conversion to days
+  // UPDATED: Shows remaining based on dual condition
   const getRemainingDisplay = (item) => {
     if (item.maintenance_type === 'hour') {
       const hrs = item.remaining_hours || 0;
+      const days = item.days_remaining || 0;
+      
       if (item.status === 'overdue') {
-        return `${Math.abs(hrs)} hours overdue`;
+        if (hrs > 0 && days > 0) {
+          return `🔴 ${Math.abs(hrs)} hours overdue / ${Math.abs(days)} days overdue`;
+        } else if (hrs > 0) {
+          return `🔴 ${Math.abs(hrs)} hours overdue`;
+        } else if (days > 0) {
+          return `🔴 ${Math.abs(days)} days overdue`;
+        }
+        return '🔴 OVERDUE';
       }
       if (item.status === 'due_soon') {
-        return `${hrs} hours remaining`;
+        if (hrs > 0 && days > 0) {
+          return `🟡 ${hrs} hours remaining / ${days} days remaining - DUE SOON!`;
+        } else if (hrs > 0) {
+          return `🟡 ${hrs} hours remaining - DUE SOON!`;
+        } else if (days > 0) {
+          return `🟡 ${days} days remaining - DUE SOON!`;
+        }
+        return '🟡 DUE SOON!';
       }
-      return `${hrs} hours remaining`;
+      // SERVICED status
+      if (hrs > 0 && days > 0) {
+        return `✅ ${hrs} hours / ${days} days until service`;
+      } else if (hrs > 0) {
+        return `✅ ${hrs} hours until service`;
+      } else if (days > 0) {
+        return `✅ ${days} days until service`;
+      }
+      return '✅ Up to date';
     } else if (item.maintenance_type === 'month') {
       const days = item.days_remaining || 0;
       if (item.status === 'overdue') {
-        return `${item.daysOverdue || 0} days overdue`;
+        return `🔴 ${Math.abs(days)} days overdue`;
       }
       if (item.status === 'due_soon') {
-        return `${days} days remaining`;
+        return `🟡 ${days} days remaining - DUE SOON!`;
       }
-      return `${days} days remaining`;
+      return `✅ ${days} days until service`;
     } else if (item.maintenance_type === 'year') {
+      const days = item.days_remaining_year || 0;
       const years = item.years_remaining || 0;
       if (item.status === 'overdue') {
-        return `${Math.abs(years)} years overdue`;
+        return `🔴 ${Math.abs(years)} years overdue`;
       }
       if (item.status === 'due_soon') {
-        return `${years} years remaining`;
+        if (days > 0) {
+          return `🟡 ${days} days remaining - DUE SOON!`;
+        }
+        return `🟡 Due this year - DUE SOON!`;
       }
-      return `${years} years remaining`;
+      if (days > 0 && days < 365) {
+        return `✅ ${days} days until next service`;
+      }
+      return `✅ ${years} years until service`;
     }
     return 'N/A';
+  };
+
+  const getAlertReason = (item) => {
+    if (item.alert_reason) {
+      return item.alert_reason;
+    }
+    if (item.maintenance_type === 'hour' && item.status === 'due_soon') {
+      const hrs = item.remaining_hours || 0;
+      const days = item.days_remaining || 0;
+      if (hrs > 0 && days > 0) {
+        return `⚠️ Alert: ${hrs} hours OR ${days} days remaining (whichever comes first)`;
+      } else if (hrs > 0) {
+        return `⚠️ Alert: ${hrs} hours remaining`;
+      } else if (days > 0) {
+        return `⚠️ Alert: ${days} days remaining`;
+      }
+    } else if (item.maintenance_type === 'hour' && item.status === 'overdue') {
+      const hrs = item.remaining_hours || 0;
+      const days = item.days_remaining || 0;
+      if (hrs <= 0 && days <= 0) {
+        return `⚠️ CRITICAL: Both hours and date are overdue!`;
+      } else if (hrs <= 0) {
+        return `⚠️ CRITICAL: Hours exceeded target!`;
+      } else if (days <= 0) {
+        return `⚠️ CRITICAL: Service date has passed!`;
+      }
+    }
+    return '';
   };
 
   const getStatusStyle = (status) => {
@@ -226,7 +285,7 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Section - Simplified */}
+      {/* Maintenance Alerts Section - Updated with Dual Condition */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -249,6 +308,7 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Type</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Maintenance Type</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
+                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Alert Reason</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
                 </tr>
               </thead>
@@ -256,6 +316,7 @@ const Dashboard = ({ token, user }) => {
                 {maintenanceAlerts.map(item => {
                   const statusStyle = getStatusStyle(item.status);
                   const remainingDisplay = getRemainingDisplay(item);
+                  const alertReason = getAlertReason(item);
                   
                   return (
                     <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
@@ -264,6 +325,9 @@ const Dashboard = ({ token, user }) => {
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
                         {remainingDisplay}
+                      </td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: statusStyle.color }}>
+                        {alertReason}
                       </td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                         <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
@@ -275,6 +339,23 @@ const Dashboard = ({ token, user }) => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Info Banner - Explaining the alert logic */}
+      <div style={{
+        backgroundColor: '#e8f4fd',
+        borderRadius: '8px',
+        padding: '15px',
+        marginTop: '20px',
+        border: '1px solid #bde0fe'
+      }}>
+        <p style={{ margin: 0, fontSize: '13px' }}>
+          <strong>🔔 How Alerts Work (Dual Condition):</strong><br />
+          ⏱️ <strong>Hour-based:</strong> Alert triggers when ≤ 40 hours remaining to target OR ≤ 4 days to service date – <strong>whichever comes FIRST</strong><br />
+          📅 <strong>Month-based:</strong> Alert triggers when ≤ 4 days remaining to service date<br />
+          📆 <strong>Year-based:</strong> Alert triggers when ≤ 30 days remaining to service year<br />
+          🟡 <strong>Due Soon:</strong> Service is approaching | 🔴 <strong>Overdue:</strong> Service date passed OR hours exceeded target
+        </p>
       </div>
     </div>
   );
