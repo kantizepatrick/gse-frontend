@@ -40,11 +40,10 @@ const GSEMaintenance = ({ token, user }) => {
     service_performed: '',
     technician_name: '',
     notes: '',
-    service_interval_hours: 250,
-    service_interval_months: 6,
-    service_interval_years: 1,
     service_date: new Date().toISOString().split('T')[0],
     current_hours: '',
+    target_hours: '',
+    months_interval: '',
     checklist: []
   });
 
@@ -235,12 +234,12 @@ const GSEMaintenance = ({ token, user }) => {
         notes: serviceData.notes,
         service_date: serviceData.service_date,
         current_hours: serviceData.current_hours,
+        target_hours: serviceData.target_hours,
+        months_interval: serviceData.months_interval,
         checklist: serviceData.checklist.filter(item => item.trim())
       };
       
-      if (currentEquip.maintenance_type === 'hour') {
-        payload.service_interval_hours = parseInt(serviceData.service_interval_hours);
-      } else if (currentEquip.maintenance_type === 'month') {
+      if (currentEquip.maintenance_type === 'month') {
         payload.service_interval_months = parseInt(serviceData.service_interval_months);
       } else if (currentEquip.maintenance_type === 'year') {
         payload.service_interval_years = parseInt(serviceData.service_interval_years);
@@ -256,11 +255,10 @@ const GSEMaintenance = ({ token, user }) => {
         service_performed: '',
         technician_name: '',
         notes: '',
-        service_interval_hours: 250,
-        service_interval_months: 6,
-        service_interval_years: 1,
         service_date: new Date().toISOString().split('T')[0],
         current_hours: '',
+        target_hours: '',
+        months_interval: '',
         checklist: []
       });
       fetchEquipment();
@@ -350,9 +348,10 @@ const GSEMaintenance = ({ token, user }) => {
 
   const getMaintenanceTypeIcon = (eq) => {
     if (eq.maintenance_type === 'hour') {
-      if (eq.service_interval_months_for_hour && eq.service_interval_months_for_hour > 0) {
-        return '⏱️+📅 Dual (Hours + Months)';
+      if (eq.next_service_date && eq.target_hours > 0) {
+        return '⏱️+📅 Dual (Hours & Date)';
       }
+      if (eq.next_service_date) return '📅 Date + Hours';
       return '⏱️ Hour-based';
     }
     if (eq.maintenance_type === 'month') return '📅 Month-based';
@@ -460,12 +459,13 @@ const GSEMaintenance = ({ token, user }) => {
 
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
         <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>📊 Maintenance Features:</strong><br />
-          ⏱️ <strong>Hour-based:</strong> Dual condition (Hours + Months) - alert on FIRST condition | Manual hour entry daily<br />
-          📅 <strong>Month-based:</strong> Calendar months only | Due Soon ≤ 4 days<br />
-          📆 <strong>Year-based:</strong> Full date support | Due Soon ≤ 30 days<br />
-          📋 <strong>Checklist:</strong> Attach inspection checklist to service records<br />
-          📎 <strong>Attachments:</strong> Upload PDF, images, documents to any equipment
+          <strong>📊 Dual Condition Hour-based Maintenance:</strong><br />
+          📅 <strong>Date Condition:</strong> Enter service date + months interval → Auto-calculates next service date<br />
+          ⏱️ <strong>Hours Condition:</strong> Enter current hours + target hours → System compares current vs target<br />
+          🔔 <strong>Alert:</strong> Triggers on whichever condition comes FIRST (date OR hours)<br />
+          📝 <strong>Daily Update:</strong> Use "Update Hours" button to record daily meter readings<br />
+          🟡 <strong>Due Soon:</strong> ≤ 4 days to date OR ≤ 40 hours to target<br />
+          🔴 <strong>Overdue:</strong> Date passed OR hours exceeded target
         </p>
       </div>
 
@@ -487,7 +487,7 @@ const GSEMaintenance = ({ token, user }) => {
             <div>
               <label style={{ fontWeight: 'bold' }}>Maintenance Type *</label>
               <select value={newEquipment.maintenance_type} onChange={(e) => setNewEquipment({...newEquipment, maintenance_type: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                <option value="hour">⏱️ Hour-based (10 hours/day) + Optional Months</option>
+                <option value="hour">⏱️ Hour-based (Dual: Date + Hours)</option>
                 <option value="month">📅 Month-based</option>
                 <option value="year">📆 Year-based</option>
                 <option value="none">⭕ No maintenance</option>
@@ -499,14 +499,14 @@ const GSEMaintenance = ({ token, user }) => {
           {newEquipment.maintenance_type === 'hour' && (
             <>
               <div style={{ marginTop: '15px' }}>
-                <label style={{ fontWeight: 'bold' }}>Hours Threshold (Next service at X hours)</label>
+                <label style={{ fontWeight: 'bold' }}>Target Hours (Next service at X hours)</label>
                 <input type="number" value={newEquipment.service_interval_hours} onChange={(e) => setNewEquipment({...newEquipment, service_interval_hours: parseInt(e.target.value) || 250})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                <small>⚠️ Due Soon when ≤ 40 hours to threshold</small>
+                <small>⚠️ Due Soon when current hours ≤ 40 hours to target</small>
               </div>
               <div style={{ marginTop: '15px' }}>
-                <label style={{ fontWeight: 'bold' }}>Optional: Months Interval (Dual Condition)</label>
+                <label style={{ fontWeight: 'bold' }}>Optional: Months Interval (Date-based condition)</label>
                 <input type="number" value={newEquipment.service_interval_months_for_hour} onChange={(e) => setNewEquipment({...newEquipment, service_interval_months_for_hour: parseInt(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                <small>Enter 0 for hours only, or enter months to enable dual condition (alert on whichever comes first)</small>
+                <small>Enter 0 for hours only, or enter months to add date-based condition (alert on whichever comes first)</small>
               </div>
             </>
           )}
@@ -515,7 +515,6 @@ const GSEMaintenance = ({ token, user }) => {
             <div style={{ marginTop: '15px' }}>
               <label style={{ fontWeight: 'bold' }}>Service Interval (months)</label>
               <input type="number" value={newEquipment.service_interval_months} onChange={(e) => setNewEquipment({...newEquipment, service_interval_months: parseInt(e.target.value) || 6})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-              <small>⚠️ Due Soon when ≤ 4 days remaining</small>
             </div>
           )}
           
@@ -523,7 +522,6 @@ const GSEMaintenance = ({ token, user }) => {
             <div style={{ marginTop: '15px' }}>
               <label style={{ fontWeight: 'bold' }}>Service Interval (years)</label>
               <input type="number" value={newEquipment.service_interval_years} onChange={(e) => setNewEquipment({...newEquipment, service_interval_years: parseInt(e.target.value) || 1})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-              <small>⚠️ Due Soon when ≤ 30 days to service date</small>
             </div>
           )}
           
@@ -576,7 +574,7 @@ const GSEMaintenance = ({ token, user }) => {
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>⏰ Remaining</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Status</th>
               <th style={{ border: '1px solid #ddd', padding: '12px' }}>Actions</th>
-            </tr>
+            </table>
           </thead>
           <tbody>
             {filteredEquipment.map(eq => {
@@ -591,7 +589,7 @@ const GSEMaintenance = ({ token, user }) => {
                     {eq.current_service_display || eq.last_service_date || eq.last_service_year || 'Not recorded'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px' }}>
-                    {eq.maintenance_type === 'hour' && `${eq.current_hours || 0} / ${eq.service_interval_hours || 0} hrs`}
+                    {eq.maintenance_type === 'hour' && `${eq.current_hours || 0} / ${eq.target_hours || eq.service_interval_hours || 0} hrs`}
                     {eq.maintenance_type !== 'hour' && '-'}
                   </td>
                   <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', fontWeight: 'bold', color: statusStyle.color === '#e74c3c' ? '#e74c3c' : (statusStyle.color === '#f39c12' ? '#f39c12' : '#0066cc') }}>
@@ -627,11 +625,10 @@ const GSEMaintenance = ({ token, user }) => {
                         setShowServiceForm(eq);
                         setServiceData({
                           ...serviceData,
-                          service_interval_hours: eq.service_interval_hours || 250,
-                          service_interval_months: eq.service_interval_months || 6,
-                          service_interval_years: eq.service_interval_years || 1,
                           service_date: new Date().toISOString().split('T')[0],
                           current_hours: eq.current_hours || 0,
+                          target_hours: eq.target_hours || eq.service_interval_hours || 0,
+                          months_interval: eq.service_interval_months_for_hour || '',
                           checklist: []
                         });
                       }} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
@@ -657,8 +654,11 @@ const GSEMaintenance = ({ token, user }) => {
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '400px', maxWidth: '90%' }}>
             <h3>📝 Update Current Hours</h3>
             <p>Equipment: <strong>{showHoursModal.equipment_name}</strong></p>
-            <p>Target Hours: <strong>{showHoursModal.service_interval_hours} hrs</strong></p>
+            <p>Target Hours: <strong>{showHoursModal.target_hours || showHoursModal.service_interval_hours} hrs</strong></p>
             <p>Current Hours: <strong>{showHoursModal.current_hours} hrs</strong></p>
+            {showHoursModal.next_service_date && (
+              <p>Next Service Date: <strong>{new Date(showHoursModal.next_service_date).toLocaleDateString()}</strong></p>
+            )}
             
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>New Current Hours:</label>
@@ -766,11 +766,11 @@ const GSEMaintenance = ({ token, user }) => {
               {editData.maintenance_type === 'hour' && (
                 <>
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Hours Threshold</label>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Target Hours</label>
                     <input type="number" value={editData.service_interval_hours} onChange={(e) => setEditData({...editData, service_interval_hours: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                   </div>
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Months Interval (Dual Condition)</label>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Months Interval (Date condition)</label>
                     <input type="number" value={editData.service_interval_months_for_hour} onChange={(e) => setEditData({...editData, service_interval_months_for_hour: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                     <small>Enter 0 for hours only, or enter months for dual condition</small>
                   </div>
@@ -828,7 +828,7 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       )}
 
-      {/* Record Service Modal with Checklist */}
+      {/* Record Service Modal with Dual Condition */}
       {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -839,83 +839,102 @@ const GSEMaintenance = ({ token, user }) => {
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>📅 Service Date *</label>
                 <input type="date" required value={serviceData.service_date} onChange={(e) => setServiceData({...serviceData, service_date: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                <small style={{ color: '#666' }}>Date when service was performed</small>
               </div>
               
               {showServiceForm.maintenance_type === 'hour' && (
+                <>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>⏱️ Current Hours (Meter Reading)</label>
+                    <input type="number" value={serviceData.current_hours} onChange={(e) => setServiceData({...serviceData, current_hours: e.target.value})} placeholder="Enter current meter reading" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                    <small style={{ color: '#666' }}>Current hour meter reading at time of service</small>
+                  </div>
+                  
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>🎯 Target Hours (Next service at X hours)</label>
+                    <input type="number" value={serviceData.target_hours} onChange={(e) => setServiceData({...serviceData, target_hours: e.target.value})} placeholder="Enter target hours for next service" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                    <small style={{ color: '#666' }}>Example: 600 hours - system will compare current vs target</small>
+                  </div>
+                  
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>📅 Months Interval (Optional - for date-based condition)</label>
+                    <input type="number" value={serviceData.months_interval} onChange={(e) => setServiceData({...serviceData, months_interval: e.target.value})} placeholder="Enter months for date-based condition" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                    <small style={{ color: '#666' }}>Example: 6 months - next service date will be calculated automatically</small>
+                  </div>
+                </>
+              )}
+              
+              {showServiceForm.maintenance_type === 'month' && (
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>⏱️ Current Hours (Meter Reading)</label>
-                  <input type="number" value={serviceData.current_hours} onChange={(e) => setServiceData({...serviceData, current_hours: e.target.value})} placeholder="Enter current meter reading" style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Service Interval (months)</label>
+                  <input type="number" value={serviceData.service_interval_months} onChange={(e) => setServiceData({...serviceData, service_interval_months: e.target.value})} placeholder={`Current: ${showServiceForm.service_interval_months || 6} months`} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
                 </div>
               )}
               
-              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff8f0', borderRadius: '8px', border: '1px solid #ffe0b3' }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#e65100' }}>⚙️ Service Interval Settings (Optional)</h4>
-                {showServiceForm.maintenance_type === 'hour' && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Hours Threshold:</label>
-                    <input type="number" value={serviceData.service_interval_hours} onChange={(e) => setServiceData({...serviceData, service_interval_hours: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_hours || 250} hours`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                    <small>⚠️ Due Soon when ≤ 40 hours to threshold</small>
-                  </div>
-                )}
-                {showServiceForm.maintenance_type === 'month' && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (months):</label>
-                    <input type="number" value={serviceData.service_interval_months} onChange={(e) => setServiceData({...serviceData, service_interval_months: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_months || 6} months`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                    <small>⚠️ Due Soon when ≤ 4 days remaining</small>
-                  </div>
-                )}
-                {showServiceForm.maintenance_type === 'year' && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (years):</label>
-                    <input type="number" value={serviceData.service_interval_years} onChange={(e) => setServiceData({...serviceData, service_interval_years: parseInt(e.target.value)})} placeholder={`Current: ${showServiceForm.service_interval_years || 1} years`} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                  </div>
-                )}
-              </div>
+              {showServiceForm.maintenance_type === 'year' && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Service Interval (years)</label>
+                  <input type="number" value={serviceData.service_interval_years} onChange={(e) => setServiceData({...serviceData, service_interval_years: e.target.value})} placeholder={`Current: ${showServiceForm.service_interval_years || 1} years`} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '14px' }} />
+                </div>
+              )}
               
-              {/* Calculation Preview */}
-              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
-                <strong style={{ fontSize: '14px' }}>📋 Calculation Preview:</strong><br />
-                {showServiceForm.maintenance_type === 'hour' && (
+              {/* Calculation Preview for Dual Condition */}
+              {showServiceForm.maintenance_type === 'hour' && (
+                <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
+                  <strong style={{ fontSize: '14px' }}>📋 Dual Condition Preview:</strong><br />
                   <span style={{ fontSize: '13px' }}>
                     Service Date: <strong>{serviceData.service_date}</strong><br />
                     Current Hours: <strong>{serviceData.current_hours || 0} hrs</strong><br />
-                    Hours Threshold: <strong>{serviceData.service_interval_hours} hours</strong><br />
-                    {showServiceForm.service_interval_months_for_hour > 0 && (
-                      <>Months Interval: <strong>{showServiceForm.service_interval_months_for_hour} months</strong><br />⚠️ Alert triggers on FIRST condition (hours OR date)<br /></>
+                    Target Hours: <strong>{serviceData.target_hours || 0} hrs</strong><br />
+                    {serviceData.months_interval && parseInt(serviceData.months_interval) > 0 && (
+                      <>Months Interval: <strong>{serviceData.months_interval} months</strong><br />
+                      → Next service date: <strong>{
+                        (() => {
+                          const date = new Date(serviceData.service_date);
+                          date.setMonth(date.getMonth() + parseInt(serviceData.months_interval));
+                          return date.toLocaleDateString();
+                        })()
+                      }</strong><br /></>
                     )}
-                    → Next service when meter reaches <strong>{(parseInt(serviceData.current_hours) || 0) + parseInt(serviceData.service_interval_hours)} hours</strong>
-                    {showServiceForm.service_interval_months_for_hour > 0 && (
-                      <> OR after <strong>{showServiceForm.service_interval_months_for_hour} months</strong></>
-                    )}
+                    → Hours remaining to target: <strong>{(parseInt(serviceData.target_hours) || 0) - (parseInt(serviceData.current_hours) || 0)} hours</strong><br />
+                    ⚠️ <strong>Alert will trigger on whichever condition comes FIRST</strong>
                   </span>
-                )}
-                {showServiceForm.maintenance_type === 'month' && (
+                </div>
+              )}
+              
+              {showServiceForm.maintenance_type === 'month' && (
+                <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
+                  <strong style={{ fontSize: '14px' }}>📋 Calculation Preview:</strong><br />
                   <span style={{ fontSize: '13px' }}>
                     Service Date: <strong>{serviceData.service_date}</strong><br />
-                    Interval: <strong>{serviceData.service_interval_months} months</strong><br />
+                    Interval: <strong>{serviceData.service_interval_months || showServiceForm.service_interval_months} months</strong><br />
                     → Next service due on: <strong>{
                       (() => {
                         const date = new Date(serviceData.service_date);
-                        date.setMonth(date.getMonth() + serviceData.service_interval_months);
+                        date.setMonth(date.getMonth() + parseInt(serviceData.service_interval_months || showServiceForm.service_interval_months));
                         return date.toLocaleDateString();
                       })()
                     }</strong>
                   </span>
-                )}
-                {showServiceForm.maintenance_type === 'year' && (
+                </div>
+              )}
+              
+              {showServiceForm.maintenance_type === 'year' && (
+                <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
+                  <strong style={{ fontSize: '14px' }}>📋 Calculation Preview:</strong><br />
                   <span style={{ fontSize: '13px' }}>
                     Service Date: <strong>{serviceData.service_date}</strong><br />
-                    Interval: <strong>{serviceData.service_interval_years} years</strong><br />
+                    Interval: <strong>{serviceData.service_interval_years || showServiceForm.service_interval_years} years</strong><br />
                     → Next service due on: <strong>{
                       (() => {
                         const date = new Date(serviceData.service_date);
-                        date.setFullYear(date.getFullYear() + serviceData.service_interval_years);
+                        date.setFullYear(date.getFullYear() + parseInt(serviceData.service_interval_years || showServiceForm.service_interval_years));
                         return date.toLocaleDateString();
                       })()
                     }</strong>
                   </span>
-                )}
-              </div>
+                </div>
+              )}
               
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Service Performed *</label>
@@ -962,7 +981,7 @@ const GSEMaintenance = ({ token, user }) => {
                 <button type="submit" disabled={loading} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', flex: 1, fontSize: '16px', fontWeight: 'bold' }}>
                   {loading ? 'Saving...' : '✅ Record Service'}
                 </button>
-                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_interval_hours: 250, service_interval_months: 6, service_interval_years: 1, service_date: new Date().toISOString().split('T')[0], current_hours: '', checklist: [] }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px' }}>
+                <button type="button" onClick={() => { setShowServiceForm(null); setServiceData({ service_performed: '', technician_name: '', notes: '', service_date: new Date().toISOString().split('T')[0], current_hours: '', target_hours: '', months_interval: '', checklist: [] }); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px' }}>
                   Cancel
                 </button>
               </div>
