@@ -69,7 +69,6 @@ const Dashboard = ({ token, user }) => {
     }
   };
 
-  // CLEANED: Removed "DUE SOON" and "OVERDUE" text from remaining column
   const getRemainingDisplay = (item) => {
     if (item.maintenance_type === 'hour') {
       const hrs = item.remaining_hours || 0;
@@ -266,7 +265,7 @@ const Dashboard = ({ token, user }) => {
               <tbody>
                 {lowStockParts.map(part => (
                   <tr key={part.part_number} style={{ backgroundColor: '#fdeaea' }}>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</table>
+                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
                     <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description}</td>
                     <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: '#e74c3c' }}>{part.quantity_on_hand}</td>
                     <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
@@ -279,7 +278,7 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Section - Cleaned */}
+      {/* Maintenance Alerts Section */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
