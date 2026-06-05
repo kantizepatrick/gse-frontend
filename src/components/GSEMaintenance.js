@@ -143,6 +143,31 @@ const GSEMaintenance = ({ token, user }) => {
     }
   };
 
+  const downloadAttachment = async (attachmentId, filename) => {
+    try {
+      const response = await fetch(`${API_URL}/api/maintenance-attachment/${attachmentId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (err) {
+      console.error('Download error:', err);
+      setError('Failed to download file');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
   const updateCurrentHours = async (equipId, currentHours) => {
     try {
       await axios.put(`${API_URL}/api/gse-maintenance/${equipId}/hours`, {
@@ -408,6 +433,19 @@ const GSEMaintenance = ({ token, user }) => {
 
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
 
+  const addChecklistItem = (setter, list) => {
+    if (newChecklistItem.trim()) {
+      setter([...list, newChecklistItem.trim()]);
+      setNewChecklistItem('');
+    }
+  };
+
+  const removeChecklistItem = (setter, list, index) => {
+    const newList = [...list];
+    newList.splice(index, 1);
+    setter(newList);
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
@@ -435,7 +473,16 @@ const GSEMaintenance = ({ token, user }) => {
       </div>
 
       <div style={{ backgroundColor: '#d1ecf1', padding: '10px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #bee5eb' }}>
-        <p style={{ margin: 0, fontSize: '13px' }}><strong>📊 Dual Condition Hour-based Maintenance:</strong><br />📅 <strong>Date Condition:</strong> Enter service date + months interval → Auto-calculates next service date<br />⏱️ <strong>Hours Condition:</strong> Enter current hours + target hours → System compares current vs target<br />🔔 <strong>Alert:</strong> Triggers on whichever condition comes FIRST (date OR hours)<br />📝 <strong>Daily Update:</strong> Use "Update Hours" button to record daily meter readings<br />🟡 <strong>Due Soon:</strong> ≤ 4 days to date OR ≤ 40 hours to target<br />🔴 <strong>Overdue:</strong> Date passed OR hours exceeded target<br />📎 <strong>Attachments:</strong> Upload PDF, images, documents</p>
+        <p style={{ margin: 0, fontSize: '13px' }}>
+          <strong>📊 Dual Condition Hour-based Maintenance:</strong><br />
+          📅 <strong>Date Condition:</strong> Enter service date + months interval → Auto-calculates next service date<br />
+          ⏱️ <strong>Hours Condition:</strong> Enter current hours + target hours → System compares current vs target<br />
+          🔔 <strong>Alert:</strong> Triggers on whichever condition comes FIRST (date OR hours)<br />
+          📝 <strong>Daily Update:</strong> Use "Update Hours" button to record daily meter readings<br />
+          🟡 <strong>Due Soon:</strong> ≤ 4 days to date OR ≤ 40 hours to target<br />
+          🔴 <strong>Overdue:</strong> Date passed OR hours exceeded target<br />
+          📎 <strong>Attachments:</strong> Click file to open in new tab
+        </p>
       </div>
 
       {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb', whiteSpace: 'pre-line' }}>{message}</div>}
@@ -534,6 +581,7 @@ const GSEMaintenance = ({ token, user }) => {
         </table>
       </div>
 
+      {/* Update Hours Modal */}
       {showHoursModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '400px', maxWidth: '90%' }}>
@@ -551,32 +599,52 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       )}
 
+      {/* Attachments Modal with Working Download */}
       {showAttachmentsModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '500px', maxWidth: '90%', maxHeight: '80vh', overflowY: 'auto' }}>
             <h3>📎 Attachments for: {showAttachmentsModal.equipment_name}</h3>
+            
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Upload New File:</label>
               <input type="file" onChange={(e) => { if (e.target.files[0]) { handleFileUpload(showAttachmentsModal.id, e.target.files[0]); } }} disabled={uploading} style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
               {uploading && <div style={{ marginTop: '10px', color: '#3498db' }}>Uploading...</div>}
               <small style={{ color: '#666' }}>Supported: PDF, Images (JPG, PNG), Documents</small>
             </div>
+            
             <h4>Existing Attachments:</h4>
-            {attachments.length === 0 ? (<p style={{ color: '#666' }}>No attachments yet.</p>) : (
+            {attachments.length === 0 ? (
+              <p style={{ color: '#666' }}>No attachments yet.</p>
+            ) : (
               <div>
                 {attachments.map(att => (
                   <div key={att.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
-                    <div><a href={`${API_URL}/api/maintenance-attachment/${att.id}/download`} target="_blank" rel="noopener noreferrer" style={{ color: '#3498db', textDecoration: 'none' }}>📄 {att.original_filename}</a><div style={{ fontSize: '11px', color: '#666' }}>Uploaded by {att.uploaded_by} on {new Date(att.created_at).toLocaleDateString()}</div></div>
+                    <div>
+                      <button
+                        onClick={() => downloadAttachment(att.id, att.original_filename)}
+                        style={{ background: 'none', border: 'none', color: '#3498db', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px', fontWeight: 'bold', padding: 0 }}
+                      >
+                        📄 {att.original_filename}
+                      </button>
+                      <div style={{ fontSize: '11px', color: '#666', marginTop: '5px' }}>
+                        Uploaded by {att.uploaded_by} on {new Date(att.created_at).toLocaleDateString()}
+                        {att.file_size && <span> | {(att.file_size / 1024).toFixed(2)} KB</span>}
+                      </div>
+                    </div>
                     <button onClick={() => handleDeleteAttachment(att.id)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>🗑️ Delete</button>
                   </div>
                 ))}
               </div>
             )}
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}><button onClick={() => { setShowAttachmentsModal(null); setAttachments([]); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Close</button></div>
+            
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowAttachmentsModal(null); setAttachments([]); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Close</button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Edit Modal */}
       {editMode && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -602,6 +670,7 @@ const GSEMaintenance = ({ token, user }) => {
         </div>
       )}
 
+      {/* Record Service Modal */}
       {showServiceForm && showServiceForm.maintenance_type !== 'none' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', width: '650px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
