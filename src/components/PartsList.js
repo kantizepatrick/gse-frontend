@@ -24,12 +24,17 @@ const PartsList = ({ token, user }) => {
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchParts = useCallback(async () => {
     try {
       console.log('🔧 Fetching parts from:', `${API_URL}/api/parts`);
-      const response = await axios.get(`${API_URL}/api/parts`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await axios.get(`${API_URL}/api/parts?_=${Date.now()}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
       console.log('🔧 Parts loaded:', response.data.length);
       setParts(response.data);
@@ -63,7 +68,7 @@ const PartsList = ({ token, user }) => {
         contact_phone: '',
         contact_email: ''
       });
-      fetchParts();
+      await fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setError('Error adding part');
@@ -86,7 +91,7 @@ const PartsList = ({ token, user }) => {
       setMessage(`✓ Part "${editingPart.part_number}" updated successfully!`);
       setShowEditForm(false);
       setEditingPart(null);
-      fetchParts();
+      await fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setError('Error updating part');
@@ -96,27 +101,38 @@ const PartsList = ({ token, user }) => {
 
   const handleDeletePart = async (part) => {
     try {
-      await axios.delete(`${API_URL}/api/parts/${part.id}`, {
+      console.log('🗑️ Deleting part:', part);
+      const response = await axios.delete(`${API_URL}/api/parts/${part.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('Delete response:', response.data);
       setMessage(`✓ Part "${part.part_number}" deleted successfully!`);
       setShowDeleteConfirm(null);
-      fetchParts();
+      setParts([]);
+      await fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError('Error deleting part');
+      console.error('Delete error details:', err.response?.data);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Error deleting part';
+      setError(errorMsg);
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  // Excel Import Function with lazy loading (NO static import of xlsx)
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchParts();
+    setRefreshing(false);
+    setMessage('✓ List refreshed!');
+    setTimeout(() => setMessage(''), 2000);
+  };
+
   const handleExcelImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setImporting(true);
     
-    // Dynamically import xlsx ONLY when user clicks the button
     import('xlsx').then((XLSX) => {
       const reader = new FileReader();
       
@@ -162,7 +178,7 @@ const PartsList = ({ token, user }) => {
         
         setMessage(`✓ Import complete! ${successCount} parts added, ${failCount} failed.`);
         setImporting(false);
-        fetchParts();
+        await fetchParts();
         setTimeout(() => setMessage(''), 5000);
         event.target.value = '';
       };
@@ -202,7 +218,22 @@ const PartsList = ({ token, user }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <h2>Parts Catalog</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {/* Excel Import Button */}
+          <button 
+            onClick={handleManualRefresh} 
+            disabled={refreshing}
+            style={{
+              backgroundColor: '#3498db',
+              color: 'white',
+              border: 'none',
+              padding: '10px 15px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              opacity: refreshing ? 0.6 : 1
+            }}
+          >
+            {refreshing ? '⟳ Refreshing...' : '🔄 Refresh'}
+          </button>
+          
           <label htmlFor="excel-import-input" style={{
             backgroundColor: '#2c3e50',
             color: 'white',
@@ -238,6 +269,19 @@ const PartsList = ({ token, user }) => {
           textAlign: 'center'
         }}>
           ⏳ Importing parts from Excel... Please wait.
+        </div>
+      )}
+
+      {refreshing && (
+        <div style={{
+          backgroundColor: '#e8f4fd',
+          color: '#2196f3',
+          padding: '10px',
+          borderRadius: '5px',
+          margin: '10px 0',
+          textAlign: 'center'
+        }}>
+          ⟳ Refreshing parts list...
         </div>
       )}
 
@@ -439,7 +483,7 @@ const PartsList = ({ token, user }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - NO WARNING MESSAGE */}
       {showDeleteConfirm && (
         <div style={{
           position: 'fixed',
@@ -463,7 +507,6 @@ const PartsList = ({ token, user }) => {
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete:</p>
             <p><strong>{showDeleteConfirm.part_number}</strong><br/>{showDeleteConfirm.description}</p>
-            <p style={{ color: 'red' }}>⚠️ This action cannot be undone!</p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'center' }}>
               <button onClick={() => handleDeletePart(showDeleteConfirm)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px', cursor: 'pointer' }}>
                 Yes, Delete
