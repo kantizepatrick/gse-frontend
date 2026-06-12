@@ -38,7 +38,7 @@ const PartsList = ({ token, user }) => {
       console.error('🔧 Error response:', err.response?.data);
       setError('Failed to load parts');
     }
-  }, [token, API_URL]);
+  }, [token]);
 
   useEffect(() => {
     fetchParts();
@@ -109,14 +109,14 @@ const PartsList = ({ token, user }) => {
     }
   };
 
-  // Excel Import Function with lazy loading
+  // Excel Import Function with lazy loading (NO static import of xlsx)
   const handleExcelImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setImporting(true);
     
-    // Dynamically import xlsx only when needed
+    // Dynamically import xlsx ONLY when user clicks the button
     import('xlsx').then((XLSX) => {
       const reader = new FileReader();
       
@@ -125,6 +125,8 @@ const PartsList = ({ token, user }) => {
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        
+        console.log('📊 Excel data:', jsonData.length, 'rows');
         
         let successCount = 0;
         let failCount = 0;
@@ -200,6 +202,7 @@ const PartsList = ({ token, user }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <h2>Parts Catalog</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Excel Import Button */}
           <label htmlFor="excel-import-input" style={{
             backgroundColor: '#2c3e50',
             color: 'white',
