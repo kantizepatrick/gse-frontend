@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import PartsList from './PartsList';
+import ReceivePart from './ReceivePart';
+import IssuePart from './IssuePart';
+import PendingApprovals from './PendingApprovals';
+import GSEMaintenance from './GSEMaintenance';
+import Transactions from './Transactions';
+import Reports from './Reports';
+import Users from './Users';
+import ChangePassword from './ChangePassword';
 
-const Dashboard = ({ token, user }) => {
+const Dashboard = ({ token, user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [lowStockParts, setLowStockParts] = useState([]);
   const [maintenanceAlerts, setMaintenanceAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,12 +21,15 @@ const Dashboard = ({ token, user }) => {
     pendingApprovals: 0
   });
 
+  // Refs for components that need to be refreshed
+  const partsListRef = useRef();
+  const maintenanceRef = useRef();
+  const transactionsRef = useRef();
+  const reportsRef = useRef();
+
   const API_URL = 'https://gse-backend.onrender.com';
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
+  // Fetch dashboard data
   const fetchDashboardData = async () => {
     try {
       const lowStockRes = await axios.get(`${API_URL}/api/reports/low-stock`, {
@@ -56,6 +69,62 @@ const Dashboard = ({ token, user }) => {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [token]);
+
+  // This function is called after receiving parts
+  const handleReceiveComplete = () => {
+    console.log('🔄 Refreshing all lists after receive...');
+    
+    // Refresh Dashboard data
+    fetchDashboardData();
+    
+    // Refresh Parts List
+    if (partsListRef.current && partsListRef.current.fetchParts) {
+      partsListRef.current.fetchParts();
+    }
+    
+    // Refresh Maintenance List
+    if (maintenanceRef.current && maintenanceRef.current.fetchEquipment) {
+      maintenanceRef.current.fetchEquipment();
+    }
+    
+    // Refresh Transactions
+    if (transactionsRef.current && transactionsRef.current.fetchTransactions) {
+      transactionsRef.current.fetchTransactions();
+    }
+    
+    // Refresh Reports
+    if (reportsRef.current && reportsRef.current.fetchData) {
+      reportsRef.current.fetchData();
+    }
+  };
+
+  // This function is called after issue/approval
+  const handleDataChange = () => {
+    console.log('🔄 Refreshing data after change...');
+    
+    // Refresh Dashboard data
+    fetchDashboardData();
+    
+    if (partsListRef.current && partsListRef.current.fetchParts) {
+      partsListRef.current.fetchParts();
+    }
+    
+    if (maintenanceRef.current && maintenanceRef.current.fetchEquipment) {
+      maintenanceRef.current.fetchEquipment();
+    }
+    
+    if (transactionsRef.current && transactionsRef.current.fetchTransactions) {
+      transactionsRef.current.fetchTransactions();
+    }
+    
+    if (reportsRef.current && reportsRef.current.fetchData) {
+      reportsRef.current.fetchData();
     }
   };
 
@@ -170,185 +239,296 @@ const Dashboard = ({ token, user }) => {
     }
   };
 
-  if (loading) {
-    return <div style={{ textAlign: 'center', padding: '50px' }}>Loading dashboard...</div>;
-  }
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'parts', label: 'Parts', icon: '🔧' },
+    { id: 'receive', label: 'Receive', icon: '📥' },
+    { id: 'issue', label: 'Issue', icon: '📤' },
+    ...((user?.role === 'admin' || user?.role === 'manager') ? 
+      [{ id: 'approvals', label: `Approvals${stats.pendingApprovals > 0 ? ` (${stats.pendingApprovals})` : ''}`, icon: '✓' }] : []),
+    { id: 'maintenance', label: 'Maintenance', icon: '🔧' },
+    { id: 'transactions', label: 'History', icon: '📜' },
+    { id: 'reports', label: 'Reports', icon: '📊' },
+    ...(user?.role === 'admin' ? [{ id: 'users', label: 'Users', icon: '👥' }] : []),
+    { id: 'changepassword', label: 'Change Password', icon: '🔑' }
+  ];
 
-  const isApprover = user?.role === 'admin' || user?.role === 'manager';
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return renderDashboard();
+      case 'parts':
+        return <PartsList ref={partsListRef} token={token} user={user} />;
+      case 'receive':
+        return <ReceivePart token={token} onReceiveComplete={handleReceiveComplete} />;
+      case 'issue':
+        return <IssuePart token={token} user={user} onIssueComplete={handleDataChange} />;
+      case 'approvals':
+        return <PendingApprovals token={token} user={user} onApprovalComplete={handleDataChange} />;
+      case 'maintenance':
+        return <GSEMaintenance ref={maintenanceRef} token={token} user={user} onMaintenanceUpdate={handleDataChange} />;
+      case 'transactions':
+        return <Transactions ref={transactionsRef} token={token} />;
+      case 'reports':
+        return <Reports ref={reportsRef} token={token} />;
+      case 'users':
+        return <Users token={token} user={user} />;
+      case 'changepassword':
+        return <ChangePassword token={token} user={user} onPasswordChange={onLogout} />;
+      default:
+        return renderDashboard();
+    }
+  };
 
-  return (
-    <div>
-      <h2>Dashboard</h2>
-      <p>Welcome back, <strong>{user?.full_name || user?.username}</strong>!</p>
+  const renderDashboard = () => {
+    if (loading) {
+      return <div style={{ textAlign: 'center', padding: '50px' }}>Loading dashboard...</div>;
+    }
 
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '30px'
-      }}>
+    const isApprover = user?.role === 'admin' || user?.role === 'manager';
+
+    return (
+      <div>
+        <h2>Dashboard</h2>
+        <p>Welcome back, <strong>{user?.full_name || user?.username}</strong>!</p>
+
+        {/* Stats Cards */}
         <div style={{
-          backgroundColor: '#3498db',
-          color: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          textAlign: 'center'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '20px',
+          marginBottom: '30px'
         }}>
-          <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.totalParts}</h3>
-          <p style={{ margin: '5px 0 0' }}>Total Parts</p>
-        </div>
-        
-        {isApprover && (
           <div style={{
-            backgroundColor: stats.pendingApprovals > 0 ? '#e74c3c' : '#27ae60',
+            backgroundColor: '#3498db',
             color: 'white',
             padding: '20px',
             borderRadius: '8px',
             textAlign: 'center'
           }}>
-            <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.pendingApprovals}</h3>
-            <p style={{ margin: '5px 0 0' }}>Pending Approvals</p>
+            <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.totalParts}</h3>
+            <p style={{ margin: '5px 0 0' }}>Total Parts</p>
           </div>
-        )}
-        
-        <div style={{
-          backgroundColor: lowStockParts.length > 0 ? '#e74c3c' : '#27ae60',
-          color: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ margin: 0, fontSize: '28px' }}>{lowStockParts.length}</h3>
-          <p style={{ margin: '5px 0 0' }}>Low Stock Alerts</p>
+          
+          {isApprover && (
+            <div style={{
+              backgroundColor: stats.pendingApprovals > 0 ? '#e74c3c' : '#27ae60',
+              color: 'white',
+              padding: '20px',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '28px' }}>{stats.pendingApprovals}</h3>
+              <p style={{ margin: '5px 0 0' }}>Pending Approvals</p>
+            </div>
+          )}
+          
+          <div style={{
+            backgroundColor: lowStockParts.length > 0 ? '#e74c3c' : '#27ae60',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '28px' }}>{lowStockParts.length}</h3>
+            <p style={{ margin: '5px 0 0' }}>Low Stock Alerts</p>
+          </div>
+          
+          <div style={{
+            backgroundColor: maintenanceAlerts.length > 0 ? '#f39c12' : '#27ae60',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '28px' }}>{maintenanceAlerts.length}</h3>
+            <p style={{ margin: '5px 0 0' }}>Maintenance Alerts</p>
+          </div>
         </div>
-        
-        <div style={{
-          backgroundColor: maintenanceAlerts.length > 0 ? '#f39c12' : '#27ae60',
-          color: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ margin: 0, fontSize: '28px' }}>{maintenanceAlerts.length}</h3>
-          <p style={{ margin: '5px 0 0' }}>Maintenance Alerts</p>
-        </div>
-      </div>
 
-      {/* Low Stock Alerts Section */}
-      <div style={{
-        backgroundColor: '#f9f9f9',
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '30px',
-        border: lowStockParts.length > 0 ? '2px solid #e74c3c' : '1px solid #ddd'
-      }}>
-        <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>⚠️ Low Stock Alerts</span>
-          {lowStockParts.length > 0 && <span style={{ backgroundColor: '#e74c3c', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{lowStockParts.length}</span>}
-        </h3>
-        
-        {lowStockParts.length === 0 ? (
-          <p style={{ color: '#666' }}>✅ All parts are at or above minimum stock levels.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f2f2f2' }}>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Part Number</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Description</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Current Stock</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Min Stock</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowStockParts.map(part => (
-                  <tr key={part.part_number} style={{ backgroundColor: '#fdeaea' }}>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: '#e74c3c' }}>{part.quantity_on_hand}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
+        {/* Low Stock Alerts Section */}
+        <div style={{
+          backgroundColor: '#f9f9f9',
+          borderRadius: '8px',
+          padding: '20px',
+          marginBottom: '30px',
+          border: lowStockParts.length > 0 ? '2px solid #e74c3c' : '1px solid #ddd'
+        }}>
+          <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>⚠️ Low Stock Alerts</span>
+            {lowStockParts.length > 0 && <span style={{ backgroundColor: '#e74c3c', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{lowStockParts.length}</span>}
+          </h3>
+          
+          {lowStockParts.length === 0 ? (
+            <p style={{ color: '#666' }}>✅ All parts are at or above minimum stock levels.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f2f2f2' }}>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Part Number</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Description</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Current Stock</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Min Stock</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Location</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Maintenance Alerts Section */}
-      <div style={{
-        backgroundColor: '#f9f9f9',
-        borderRadius: '8px',
-        padding: '20px',
-        border: maintenanceAlerts.length > 0 ? '2px solid #f39c12' : '1px solid #ddd'
-      }}>
-        <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>🔧 Maintenance Alerts</span>
-          {maintenanceAlerts.length > 0 && <span style={{ backgroundColor: '#f39c12', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{maintenanceAlerts.length}</span>}
-        </h3>
-        
-        {maintenanceAlerts.length === 0 ? (
-          <p style={{ color: '#666' }}>✅ All equipment maintenance is up to date.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f2f2f2' }}>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Equipment</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Type</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Maintenance Type</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Alert Reason</th>
-                  <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {maintenanceAlerts.map(item => {
-                  const statusStyle = getStatusStyle(item.status);
-                  const remainingDisplay = getRemainingDisplay(item);
-                  const alertReason = getAlertReason(item);
-                  
-                  return (
-                    <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{item.equipment_name}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.equipment_type || '-'}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
-                        {remainingDisplay}
-                      </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: statusStyle.color }}>
-                        {alertReason}
-                      </td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                        <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
-                      </td>
+                </thead>
+                <tbody>
+                  {lowStockParts.map(part => (
+                    <tr key={part.part_number} style={{ backgroundColor: '#fdeaea' }}>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: '#e74c3c' }}>{part.quantity_on_hand}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Maintenance Alerts Section */}
+        <div style={{
+          backgroundColor: '#f9f9f9',
+          borderRadius: '8px',
+          padding: '20px',
+          border: maintenanceAlerts.length > 0 ? '2px solid #f39c12' : '1px solid #ddd'
+        }}>
+          <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>🔧 Maintenance Alerts</span>
+            {maintenanceAlerts.length > 0 && <span style={{ backgroundColor: '#f39c12', color: 'white', padding: '2px 8px', borderRadius: '20px', fontSize: '12px' }}>{maintenanceAlerts.length}</span>}
+          </h3>
+          
+          {maintenanceAlerts.length === 0 ? (
+            <p style={{ color: '#666' }}>✅ All equipment maintenance is up to date.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f2f2f2' }}>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Equipment</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Type</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Maintenance Type</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Alert Reason</th>
+                    <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maintenanceAlerts.map(item => {
+                    const statusStyle = getStatusStyle(item.status);
+                    const remainingDisplay = getRemainingDisplay(item);
+                    const alertReason = getAlertReason(item);
+                    
+                    return (
+                      <tr key={item.id} style={{ backgroundColor: statusStyle.bg }}>
+                        <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold' }}>{item.equipment_name}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.equipment_type || '-'}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>{getMaintenanceTypeIcon(item.maintenance_type)}</td>
+                        <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: statusStyle.color }}>
+                          {remainingDisplay}
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '12px', color: statusStyle.color }}>
+                          {alertReason}
+                        </td>
+                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                          <span style={{ color: statusStyle.color, fontWeight: 'bold' }}>{statusStyle.text}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Info Banner */}
+        <div style={{
+          backgroundColor: '#e8f4fd',
+          borderRadius: '8px',
+          padding: '15px',
+          marginTop: '20px',
+          border: '1px solid #bde0fe'
+        }}>
+          <p style={{ margin: 0, fontSize: '13px' }}>
+            <strong>🔔 How Alerts Work (Dual Condition):</strong><br />
+            ⏱️ <strong>Hour-based:</strong> Alert triggers when ≤ 40 hours remaining to target OR ≤ 4 days to service date – <strong>whichever comes FIRST</strong><br />
+            📅 <strong>Month-based:</strong> Alert triggers when ≤ 4 days remaining to service date<br />
+            📆 <strong>Year-based:</strong> Alert triggers when ≤ 30 days remaining to service year<br />
+            🟡 <strong>Due Soon:</strong> Service is approaching | 🔴 <strong>Overdue:</strong> Service date passed OR hours exceeded target
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Navbar */}
+      <nav style={{
+        backgroundColor: '#2c3e50',
+        color: 'white',
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+          GSE Inventory Management System
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <span>👤 {user?.full_name || user?.username} ({user?.role})</span>
+          <button
+            onClick={onLogout}
+            style={{
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              padding: '5px 15px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </nav>
+
+      {/* Tabs */}
+      <div style={{
+        backgroundColor: '#34495e',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '5px',
+        padding: '10px 20px'
+      }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              backgroundColor: activeTab === tab.id ? '#3498db' : 'transparent',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Info Banner */}
-      <div style={{
-        backgroundColor: '#e8f4fd',
-        borderRadius: '8px',
-        padding: '15px',
-        marginTop: '20px',
-        border: '1px solid #bde0fe'
-      }}>
-        <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>🔔 How Alerts Work (Dual Condition):</strong><br />
-          ⏱️ <strong>Hour-based:</strong> Alert triggers when ≤ 40 hours remaining to target OR ≤ 4 days to service date – <strong>whichever comes FIRST</strong><br />
-          📅 <strong>Month-based:</strong> Alert triggers when ≤ 4 days remaining to service date<br />
-          📆 <strong>Year-based:</strong> Alert triggers when ≤ 30 days remaining to service year<br />
-          🟡 <strong>Due Soon:</strong> Service is approaching | 🔴 <strong>Overdue:</strong> Service date passed OR hours exceeded target
-        </p>
+      {/* Content */}
+      <div style={{ padding: '20px' }}>
+        {renderContent()}
       </div>
     </div>
   );

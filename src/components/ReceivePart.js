@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const ReceivePart = ({ token }) => {
+const ReceivePart = ({ token, onReceiveComplete }) => {
   const [mode, setMode] = useState('receive');
   const [formData, setFormData] = useState({
     part_number: '',
@@ -17,7 +17,7 @@ const ReceivePart = ({ token }) => {
     compatible_gse: '',
     location_bin: '',
     min_stock: 5,
-    maintenance_type: 'hour', // NEW: hour, month, year, none
+    maintenance_type: 'hour',
     service_interval_hours: 250,
     service_interval_months: 6,
     service_interval_years: 1,
@@ -47,6 +47,12 @@ const ReceivePart = ({ token }) => {
       
       setMessage(`✓ Part "${formData.part_number}" received successfully!`);
       setFormData({ part_number: '', quantity: '', reference_number: '', notes: '' });
+      
+      // 🔄 Refresh Parts List and Maintenance after successful receive
+      if (onReceiveComplete) {
+        onReceiveComplete();
+      }
+      
       setTimeout(() => setMessage(''), 3000);
       
     } catch (err) {
@@ -55,8 +61,7 @@ const ReceivePart = ({ token }) => {
         setNewPartData(prev => ({ ...prev, part_number: formData.part_number }));
         setError(`Part "${formData.part_number}" not found. Please add its details below.`);
       } else {
-        setMessage('✓ Part received successfully!');
-        setFormData({ part_number: '', quantity: '', reference_number: '', notes: '' });
+        setError(err.response?.data?.error || 'Error receiving parts');
       }
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -116,41 +121,20 @@ const ReceivePart = ({ token }) => {
         contact_phone: '',
         contact_email: ''
       });
+      
+      // 🔄 Refresh Parts List and Maintenance after creating new part
+      if (onReceiveComplete) {
+        onReceiveComplete();
+      }
+      
       setTimeout(() => setMessage(''), 4000);
       
     } catch (err) {
-      setMessage(`✓ Part "${newPartData.part_number}" created and ${formData.quantity} units received successfully!`);
-      setShowNewPartForm(false);
-      setFormData({ part_number: '', quantity: '', reference_number: '', notes: '' });
-      setNewPartData({
-        part_number: '',
-        description: '',
-        manufacturer: '',
-        compatible_gse: '',
-        location_bin: '',
-        min_stock: 5,
-        maintenance_type: 'hour',
-        service_interval_hours: 250,
-        service_interval_months: 6,
-        service_interval_years: 1,
-        contact_person: '',
-        contact_phone: '',
-        contact_email: ''
-      });
-      setTimeout(() => setMessage(''), 4000);
+      console.error('Error creating part:', err);
+      setError('Error creating part. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Get maintenance type display text
-  const getMaintenanceTypeDisplay = (type) => {
-    switch(type) {
-      case 'hour': return '⏱️ Hour-based (operating hours)';
-      case 'month': return '📅 Month-based (calendar months)';
-      case 'year': return '📆 Year-based (calendar years)';
-      case 'none': return '⭕ No maintenance required';
-      default: return type;
     }
   };
 
@@ -405,7 +389,6 @@ const ReceivePart = ({ token }) => {
               </select>
             </div>
 
-            {/* Hour-based interval field */}
             {newPartData.maintenance_type === 'hour' && (
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (hours)</label>
@@ -426,7 +409,6 @@ const ReceivePart = ({ token }) => {
               </div>
             )}
 
-            {/* Month-based interval field */}
             {newPartData.maintenance_type === 'month' && (
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (months)</label>
@@ -447,7 +429,6 @@ const ReceivePart = ({ token }) => {
               </div>
             )}
 
-            {/* Year-based interval field */}
             {newPartData.maintenance_type === 'year' && (
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Service Interval (years)</label>
