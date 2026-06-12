@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
+import API_URL from '../config/api';
 
 const PartsList = ({ token, user }) => {
   const [parts, setParts] = useState([]);
@@ -22,8 +24,7 @@ const PartsList = ({ token, user }) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-
-  const API_URL = 'https://gse-backend.onrender.com';
+  const [importing, setImporting] = useState(false);
 
   const fetchParts = useCallback(async () => {
     try {
@@ -62,21 +63,8 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setMessage('✓ Part added successfully!');
-      setShowAddForm(false);
-      setNewPart({
-        part_number: '',
-        description: '',
-        manufacturer: '',
-        compatible_gse: '',
-        location_bin: '',
-        min_stock: 5,
-        contact_person: '',
-        contact_phone: '',
-        contact_email: ''
-      });
-      fetchParts();
-      setTimeout(() => setMessage(''), 3000);
+      setError('Error adding part');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -98,11 +86,8 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setMessage(`✓ Part "${editingPart?.part_number}" updated successfully!`);
-      setShowEditForm(false);
-      setEditingPart(null);
-      fetchParts();
-      setTimeout(() => setMessage(''), 3000);
+      setError('Error updating part');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -116,11 +101,81 @@ const PartsList = ({ token, user }) => {
       fetchParts();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setMessage(`✓ Part "${part.part_number}" deleted successfully!`);
-      setShowDeleteConfirm(null);
-      fetchParts();
-      setTimeout(() => setMessage(''), 3000);
+      setError('Error deleting part');
+      setTimeout(() => setError(''), 3000);
     }
+  };
+
+  // Excel Import Function
+  const handleExcelImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const row of jsonData) {
+        // Map Excel columns to database fields
+        const partData = {
+          part_number: row['Part Number'] || row['PartNumber'] || row['part_number'] || row['PART_NUMBER'],
+          description: row['Description'] || row['description'] || row['DESCRIPTION'] || '',
+          manufacturer: row['Manufacturer'] || row['manufacturer'] || row['MANUFACTURER'] || '',
+          compatible_gse: row['Compatible GSE'] || row['compatible_gse'] || row['COMPATIBLE_GSE'] || '',
+          location_bin: row['Location Bin'] || row['location_bin'] || row['LOCATION_BIN'] || '',
+          min_stock: parseInt(row['Min Stock'] || row['min_stock'] || row['MIN_STOCK'] || 5),
+          quantity_on_hand: parseInt(row['Quantity On Hand'] || row['quantity_on_hand'] || row['QUANTITY_ON_HAND'] || 0),
+          contact_person: row['Contact Person'] || row['contact_person'] || row['CONTACT_PERSON'] || '',
+          contact_phone: row['Contact Phone'] || row['contact_phone'] || row['CONTACT_PHONE'] || '',
+          contact_email: row['Contact Email'] || row['contact_email'] || row['CONTACT_EMAIL'] || '',
+          maintenance_type: row['Maintenance Type'] || row['maintenance_type'] || 'hour',
+          service_interval_hours: parseInt(row['Service Interval Hours'] || row['service_interval_hours'] || 250),
+          service_interval_months: parseInt(row['Service Interval Months'] || row['service_interval_months'] || 6),
+          service_interval_years: parseInt(row['Service Interval Years'] || row['service_interval_years'] || 1)
+        };
+        
+        // Validate required fields
+        if (!partData.part_number) {
+          console.warn('Skipping row: Missing Part Number', row);
+          failCount++;
+          continue;
+        }
+        
+        try {
+          await axios.post(`${API_URL}/api/parts`, partData, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          successCount++;
+        } catch (err) {
+          console.error('Error importing part:', partData.part_number, err);
+          failCount++;
+        }
+      }
+      
+      setMessage(`✓ Import complete! ${successCount} parts added, ${failCount} failed.`);
+      setImporting(false);
+      fetchParts();
+      setTimeout(() => setMessage(''), 5000);
+      
+      // Clear the file input
+      event.target.value = '';
+    };
+    
+    reader.onerror = () => {
+      setError('Error reading file');
+      setImporting(false);
+      setTimeout(() => setError(''), 3000);
+    };
+    
+    reader.readAsArrayBuffer(file);
   };
 
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
@@ -140,91 +195,148 @@ const PartsList = ({ token, user }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <h2>Parts Catalog</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>
-          {showAddForm ? 'Cancel' : '+ Add New Part'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Excel Import Button */}
+          <label htmlFor="excel-import-input" style={{
+            backgroundColor: '#2c3e50',
+            color: 'white',
+            border: 'none',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            display: 'inline-block'
+          }}>
+            📂 Import from Excel
+          </label>
+          <input
+            type="file"
+            id="excel-import-input"
+            accept=".xlsx, .xls, .csv"
+            onChange={handleExcelImport}
+            style={{ display: 'none' }}
+            disabled={importing}
+          />
+          <button onClick={() => setShowAddForm(!showAddForm)} style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>
+            {showAddForm ? 'Cancel' : '+ Add New Part'}
+          </button>
+        </div>
       </div>
 
+      {importing && (
+        <div style={{
+          backgroundColor: '#e8f4fd',
+          color: '#2196f3',
+          padding: '10px',
+          borderRadius: '5px',
+          margin: '10px 0',
+          textAlign: 'center'
+        }}>
+          ⏳ Importing parts from Excel... Please wait.
+        </div>
+      )}
+
       {showAddForm && (
-        <form onSubmit={handleAddPart} className="form-container">
+        <form onSubmit={handleAddPart} style={{
+          backgroundColor: '#f9f9f9',
+          padding: '20px',
+          borderRadius: '8px',
+          border: '1px solid #ddd',
+          marginBottom: '20px'
+        }}>
           <h3>Add New Spare Part</h3>
-          <div className="form-group">
-            <label>Part Number *</label>
-            <input type="text" required value={newPart.part_number} onChange={(e) => setNewPart({...newPart, part_number: e.target.value})} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Part Number *</label>
+              <input type="text" required value={newPart.part_number} onChange={(e) => setNewPart({...newPart, part_number: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Description *</label>
+              <input type="text" required value={newPart.description} onChange={(e) => setNewPart({...newPart, description: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Manufacturer</label>
+              <input type="text" value={newPart.manufacturer} onChange={(e) => setNewPart({...newPart, manufacturer: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Compatible GSE</label>
+              <input type="text" value={newPart.compatible_gse} onChange={(e) => setNewPart({...newPart, compatible_gse: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Bin Location</label>
+              <input type="text" value={newPart.location_bin} onChange={(e) => setNewPart({...newPart, location_bin: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Minimum Stock</label>
+              <input type="number" value={newPart.min_stock} onChange={(e) => setNewPart({...newPart, min_stock: parseInt(e.target.value) || 5})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Person</label>
+              <input type="text" value={newPart.contact_person} onChange={(e) => setNewPart({...newPart, contact_person: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Phone</label>
+              <input type="tel" value={newPart.contact_phone} onChange={(e) => setNewPart({...newPart, contact_phone: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Email</label>
+              <input type="email" value={newPart.contact_email} onChange={(e) => setNewPart({...newPart, contact_email: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Description *</label>
-            <input type="text" required value={newPart.description} onChange={(e) => setNewPart({...newPart, description: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Manufacturer *</label>
-            <input type="text" required value={newPart.manufacturer} onChange={(e) => setNewPart({...newPart, manufacturer: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Compatible GSE</label>
-            <input type="text" placeholder="e.g., Tow Tractor, GPU" value={newPart.compatible_gse} onChange={(e) => setNewPart({...newPart, compatible_gse: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Bin Location</label>
-            <input type="text" placeholder="e.g., A-12" value={newPart.location_bin} onChange={(e) => setNewPart({...newPart, location_bin: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Minimum Stock</label>
-            <input type="number" value={newPart.min_stock} onChange={(e) => setNewPart({...newPart, min_stock: parseInt(e.target.value) || 5})} />
-          </div>
-          
-          <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>📞 Manufacturer Contact Details</h4>
-          <div className="form-group">
-            <label>Contact Person</label>
-            <input type="text" placeholder="e.g., John Smith" value={newPart.contact_person} onChange={(e) => setNewPart({...newPart, contact_person: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Contact Phone</label>
-            <input type="tel" placeholder="e.g., +1 234 567 8900" value={newPart.contact_phone} onChange={(e) => setNewPart({...newPart, contact_phone: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Contact Email</label>
-            <input type="email" placeholder="e.g., sales@manufacturer.com" value={newPart.contact_email} onChange={(e) => setNewPart({...newPart, contact_email: e.target.value})} />
-          </div>
-          
-          <button type="submit" style={{ backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Save Part</button>
+          <button type="submit" style={{ marginTop: '15px', backgroundColor: '#27ae60', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer' }}>Save Part</button>
         </form>
       )}
 
       {showEditForm && editingPart && (
-        <form onSubmit={handleEditPart} className="form-container">
-          <h3>Edit Contact Details for: {editingPart.part_number}</h3>
-          <p><strong>Description:</strong> {editingPart.description}</p>
-          <p><strong>Manufacturer:</strong> {editingPart.manufacturer}</p>
-          <hr />
-          <h4>📞 Contact Information</h4>
-          <div className="form-group">
-            <label>Contact Person</label>
-            <input type="text" value={editingPart.contact_person || ''} onChange={(e) => setEditingPart({...editingPart, contact_person: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Contact Phone</label>
-            <input type="tel" value={editingPart.contact_phone || ''} onChange={(e) => setEditingPart({...editingPart, contact_phone: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Contact Email</label>
-            <input type="email" value={editingPart.contact_email || ''} onChange={(e) => setEditingPart({...editingPart, contact_email: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Bin Location</label>
-            <input type="text" value={editingPart.location_bin || ''} onChange={(e) => setEditingPart({...editingPart, location_bin: e.target.value})} />
-          </div>
-          <div className="form-group">
-            <label>Minimum Stock</label>
-            <input type="number" value={editingPart.min_stock || 5} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value) || 5})} />
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Save Changes</button>
-            <button type="button" onClick={() => { setShowEditForm(false); setEditingPart(null); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Cancel</button>
-          </div>
-        </form>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <form onSubmit={handleEditPart} style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <h3>Edit Part: {editingPart.part_number}</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Person</label>
+              <input type="text" value={editingPart.contact_person || ''} onChange={(e) => setEditingPart({...editingPart, contact_person: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Phone</label>
+              <input type="tel" value={editingPart.contact_phone || ''} onChange={(e) => setEditingPart({...editingPart, contact_phone: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Email</label>
+              <input type="email" value={editingPart.contact_email || ''} onChange={(e) => setEditingPart({...editingPart, contact_email: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Bin Location</label>
+              <input type="text" value={editingPart.location_bin || ''} onChange={(e) => setEditingPart({...editingPart, location_bin: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Minimum Stock</label>
+              <input type="number" value={editingPart.min_stock || 5} onChange={(e) => setEditingPart({...editingPart, min_stock: parseInt(e.target.value) || 5})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Save Changes</button>
+              <button type="button" onClick={() => { setShowEditForm(false); setEditingPart(null); }} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {message && <div style={{ backgroundColor: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px', margin: '10px 0', border: '1px solid #c3e6cb' }}>{message}</div>}
@@ -232,65 +344,58 @@ const PartsList = ({ token, user }) => {
 
       <input
         type="text"
-        placeholder="Search parts..."
+        placeholder="🔍 Search parts..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ margin: '20px 0', padding: '8px', width: '300px', borderRadius: '4px', border: '1px solid #ddd' }}
+        style={{ margin: '20px 0', padding: '10px', width: '300px', borderRadius: '5px', border: '1px solid #ddd' }}
       />
       
-      <table style={{ width: '100%', borderCollapse: 'collapse' }} className="data-table">
-        <thead>
-          <tr>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Part #</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Description</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Manufacturer</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Location</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Stock</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Min</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Contact</th>
-            <th style={{ border: '1px solid #ddd', padding: '12px', backgroundColor: '#f2f2f2', textAlign: 'left', color: 'black', fontWeight: 'bold', fontSize: '14px' }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parts.filter(p => p.part_number.toLowerCase().includes(search.toLowerCase()) || 
-            (p.description && p.description.toLowerCase().includes(search.toLowerCase()))).map(part => (
-            <tr key={part.id} style={{ backgroundColor: part.quantity_on_hand <= part.min_stock ? '#fff3cd' : 'white' }}>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description || '-'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.manufacturer || '-'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? '#dc3545' : '#28a745' }}>
-                {part.quantity_on_hand}
-              </td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                <button 
-                  onClick={() => showContactDetails(part)}
-                  style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
-                >
-                  📞 View
-                </button>
-              </td>
-              <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                <button 
-                  onClick={() => openEditForm(part)}
-                  style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
-                >
-                  ✏️ Edit
-                </button>
-                {canDelete && (
-                  <button 
-                    onClick={() => setShowDeleteConfirm(part)}
-                    style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}
-                  >
-                    🗑️ Delete
-                  </button>
-                )}
-              </td>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f2f2f2' }}>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Part #</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Description</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Manufacturer</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Location</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Stock</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Min</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Contact</th>
+              <th style={{ border: '1px solid #ddd', padding: '12px', textAlign: 'left' }}>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {parts.filter(p => p.part_number.toLowerCase().includes(search.toLowerCase()) || 
+              (p.description && p.description.toLowerCase().includes(search.toLowerCase()))).map(part => (
+              <tr key={part.id} style={{ backgroundColor: part.quantity_on_hand <= part.min_stock ? '#fff3cd' : 'white' }}>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.part_number}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.description || '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.manufacturer || '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.location_bin || '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px', fontWeight: 'bold', color: part.quantity_on_hand <= part.min_stock ? '#dc3545' : '#28a745' }}>
+                  {part.quantity_on_hand}
+                </td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{part.min_stock}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                  <button onClick={() => showContactDetails(part)} style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
+                    📞 View
+                  </button>
+                </td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                  <button onClick={() => openEditForm(part)} style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}>
+                    ✏️ Edit
+                  </button>
+                  {canDelete && (
+                    <button onClick={() => setShowDeleteConfirm(part)} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>
+                      🗑️ Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Contact Details Modal */}
       {selectedPart && (
@@ -321,9 +426,8 @@ const PartsList = ({ token, user }) => {
             <hr />
             <h4>Contact Details:</h4>
             <p><strong>👤 Contact Person:</strong> {selectedPart.contact_person || 'Not provided'}</p>
-            <p><strong>📞 Phone:</strong> {selectedPart.contact_phone ? <a href={`tel:${selectedPart.contact_phone}`}>{selectedPart.contact_phone}</a> : 'Not provided'}</p>
-            <p><strong>📧 Email:</strong> {selectedPart.contact_email ? <a href={`mailto:${selectedPart.contact_email}`}>{selectedPart.contact_email}</a> : 'Not provided'}</p>
-            <hr />
+            <p><strong>📞 Phone:</strong> {selectedPart.contact_phone || 'Not provided'}</p>
+            <p><strong>📧 Email:</strong> {selectedPart.contact_email || 'Not provided'}</p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button onClick={closeContactDetails} style={{ backgroundColor: '#95a5a6', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '3px', cursor: 'pointer' }}>Close</button>
             </div>
