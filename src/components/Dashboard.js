@@ -260,7 +260,7 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Current Stock</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Min Stock</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Location</th>
-                </tr>
+                </table>
               </thead>
               <tbody>
                 {lowStockParts.map(part => (
@@ -303,7 +303,7 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Alert Reason</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
-                </tr>
+                </table>
               </thead>
               <tbody>
                 {maintenanceAlerts.map(item => {
@@ -332,23 +332,6 @@ const Dashboard = ({ token, user }) => {
             </table>
           </div>
         )}
-      </div>
-
-      {/* Info Banner */}
-      <div style={{
-        backgroundColor: '#e8f4fd',
-        borderRadius: '8px',
-        padding: '15px',
-        marginTop: '20px',
-        border: '1px solid #bde0fe'
-      }}>
-        <p style={{ margin: 0, fontSize: '13px' }}>
-          <strong>🔔 How Alerts Work (Dual Condition):</strong><br />
-          ⏱️ <strong>Hour-based:</strong> Alert triggers when ≤ 40 hours remaining to target OR ≤ 4 days to service date – <strong>whichever comes FIRST</strong><br />
-          📅 <strong>Month-based:</strong> Alert triggers when ≤ 4 days remaining to service date<br />
-          📆 <strong>Year-based:</strong> Alert triggers when ≤ 30 days remaining to service year<br />
-          🟡 <strong>Due Soon:</strong> Service is approaching | 🔴 <strong>Overdue:</strong> Service date passed OR hours exceeded target
-        </p>
       </div>
     </div>
   );
