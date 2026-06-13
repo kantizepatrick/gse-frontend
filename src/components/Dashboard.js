@@ -121,7 +121,7 @@ const Dashboard = ({ token, user }) => {
         if (days > 0) {
           return `${days} days remaining`;
         }
-        return `Due this year`;
+        return 'Due this year';
       }
       if (days > 0 && days < 365) {
         return `${days} days until service`;
@@ -149,11 +149,11 @@ const Dashboard = ({ token, user }) => {
       const hrs = item.remaining_hours || 0;
       const days = item.days_remaining || 0;
       if (hrs <= 0 && days <= 0) {
-        return `Both hours and date overdue`;
+        return 'Both hours and date overdue';
       } else if (hrs <= 0) {
-        return `Hours exceeded target`;
+        return 'Hours exceeded target';
       } else if (days <= 0) {
-        return `Service date passed`;
+        return 'Service date passed';
       }
     }
     return '';
@@ -181,7 +181,6 @@ const Dashboard = ({ token, user }) => {
       <h2>Dashboard</h2>
       <p>Welcome back, <strong>{user?.full_name || user?.username}</strong>!</p>
 
-      {/* Stats Cards */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -235,7 +234,6 @@ const Dashboard = ({ token, user }) => {
         </div>
       </div>
 
-      {/* Low Stock Alerts Section */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -260,7 +258,7 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Current Stock</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Min Stock</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Location</th>
-                </table>
+                </tr>
               </thead>
               <tbody>
                 {lowStockParts.map(part => (
@@ -278,7 +276,6 @@ const Dashboard = ({ token, user }) => {
         )}
       </div>
 
-      {/* Maintenance Alerts Section */}
       <div style={{
         backgroundColor: '#f9f9f9',
         borderRadius: '8px',
@@ -303,7 +300,7 @@ const Dashboard = ({ token, user }) => {
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Remaining</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Alert Reason</th>
                   <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>Status</th>
-                </table>
+                </tr>
               </thead>
               <tbody>
                 {maintenanceAlerts.map(item => {
