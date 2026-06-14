@@ -200,7 +200,7 @@ const Login = ({ onLogin }) => {
             src={logo} 
             alt="CAS Ground Services" 
             style={{ 
-              width: '180px',
+              width: '200px',
               height: 'auto',
               maxWidth: '100%',
               marginBottom: '20px'
