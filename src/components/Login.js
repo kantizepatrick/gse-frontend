@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import logo from '../assets/logo.png';
+
+// Import your 5 local GSE images (copy these to CAS assets folder first)
+import gse1 from '../assets/gse1.jpg';
+import gse2 from '../assets/gse2.jpg';
+import gse3 from '../assets/gse3.jpg';
+import gse4 from '../assets/gse4.jpg';
+import gse5 from '../assets/gse5.jpg';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -14,8 +21,60 @@ const Login = ({ onLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
 
-  // Use Render backend URL
+  // Array of 6 GSE background images (5 local + 1 Unsplash)
+  const backgroundImages = [
+    {
+      url: gse1,
+      title: '🛞 Ground Support Equipment',
+      description: 'GSE equipment servicing aircraft on tarmac'
+    },
+    {
+      url: gse2,
+      title: '🛻 Baggage Handling',
+      description: 'Baggage carts and tugs in operation'
+    },
+    {
+      url: gse3,
+      title: '✈️ Airport Tarmac Operations',
+      description: 'Ground crew and GSE equipment preparing aircraft'
+    },
+    {
+      url: gse4,
+      title: '🚛 GSE Service Vehicles',
+      description: 'Multiple service vehicles supporting aircraft'
+    },
+    {
+      url: gse5,
+      title: '👥 Passenger Boarding',
+      description: 'Passengers boarding aircraft through jet bridge'
+    },
+    {
+      url: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=1920&h=1080&fit=crop',
+      title: '🛞 Tow Tractor Towing Aircraft',
+      description: 'GSE tow tractor moving aircraft to gate'
+    }
+  ];
+
+  // Preload images for smooth transitions
+  useEffect(() => {
+    backgroundImages.forEach((img) => {
+      const preloadImg = new Image();
+      preloadImg.src = img.url;
+    });
+  }, []);
+
+  // Rotate background images every 8 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBgIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // CAS BACKEND URL
   const API_URL = 'https://gse-backend.onrender.com';
 
   const handleSubmit = async (e) => {
@@ -78,19 +137,84 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  const currentImage = backgroundImages[currentBgIndex];
+
   return (
-    <div className="login-container">
-      <div className="login-box">
-        {/* Company Logo */}
-        <div className="logo-container">
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Background Image Container with Brightness (No Zoom Animation) */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: `url(${currentImage.url})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          filter: 'brightness(1.3) contrast(1.1)'
+        }} />
+      </div>
+
+      {/* Very Light Overlay for Better Visibility */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 100%)',
+        zIndex: 1
+      }} />
+
+      {/* Login Box */}
+      <div style={{
+        position: 'relative',
+        zIndex: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        padding: '40px',
+        width: '100%',
+        maxWidth: '420px',
+        margin: '20px',
+        animation: 'slideUp 0.5s ease-out'
+      }}>
+        <div style={{ textAlign: 'center' }}>
           <img 
             src={logo} 
-            alt="Core Aviation Services" 
-            className="login-logo"
+            alt="CAS Ground Services" 
+            style={{ 
+              width: '180px',
+              height: 'auto',
+              maxWidth: '100%',
+              marginBottom: '20px'
+            }}
           />
         </div>
         
-        <h2>GSE Spare Parts Inventory</h2>
+        <h2 style={{ 
+          textAlign: 'center', 
+          color: '#2c3e50', 
+          marginBottom: '25px',
+          fontSize: '20px',
+          fontWeight: 'bold'
+        }}>GSE Spare Parts and Maintenance Management</h2>
         
         {!showForgotPassword ? (
           <form onSubmit={handleSubmit}>
@@ -100,6 +224,19 @@ const Login = ({ onLogin }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.3s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3498db'}
+              onBlur={(e) => e.target.style.borderColor = '#ddd'}
             />
             <input
               type="password"
@@ -107,14 +244,67 @@ const Login = ({ onLogin }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.3s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3498db'}
+              onBlur={(e) => e.target.style.borderColor = '#ddd'}
             />
-            <button type="submit">Login</button>
-            {error && <div className="error">{error}</div>}
-            <div className="forgot-password-link">
+            <button 
+              type="submit" 
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2980b9'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#3498db'}
+            >
+              Login
+            </button>
+            {error && (
+              <div style={{ 
+                color: '#e74c3c', 
+                textAlign: 'center', 
+                marginTop: '15px',
+                fontSize: '13px',
+                padding: '8px',
+                backgroundColor: '#fdeaea',
+                borderRadius: '6px'
+              }}>
+                {error}
+              </div>
+            )}
+            <div style={{ textAlign: 'center' }}>
               <button 
                 type="button" 
                 onClick={() => setShowForgotPassword(true)}
-                style={{ background: 'none', color: '#3498db', padding: '10px 0 0 0', fontSize: '12px', border: 'none', cursor: 'pointer' }}
+                style={{ 
+                  background: 'none', 
+                  color: '#3498db', 
+                  padding: '12px 0 0 0', 
+                  fontSize: '12px', 
+                  border: 'none', 
+                  cursor: 'pointer',
+                  transition: 'color 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#2980b9'}
+                onMouseLeave={(e) => e.target.style.color = '#3498db'}
               >
                 Forgot Password?
               </button>
@@ -122,8 +312,8 @@ const Login = ({ onLogin }) => {
           </form>
         ) : !showResetForm ? (
           <form onSubmit={handleRequestReset}>
-            <h3>Reset Password</h3>
-            <p style={{ fontSize: '12px', marginBottom: '15px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '15px' }}>Reset Password</h3>
+            <p style={{ fontSize: '13px', marginBottom: '20px', textAlign: 'center', color: '#666' }}>
               Enter your username to receive a reset code
             </p>
             <input
@@ -132,10 +322,42 @@ const Login = ({ onLogin }) => {
               value={resetUsername}
               onChange={(e) => setResetUsername(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box'
+              }}
             />
-            <button type="submit">Send Reset Code</button>
-            {resetMessage && <div className="success">{resetMessage}</div>}
-            {resetError && <div className="error">{resetError}</div>}
+            <button 
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Send Reset Code
+            </button>
+            {resetMessage && (
+              <div style={{ color: '#27ae60', textAlign: 'center', marginTop: '15px', fontSize: '13px' }}>
+                {resetMessage}
+              </div>
+            )}
+            {resetError && (
+              <div style={{ color: '#e74c3c', textAlign: 'center', marginTop: '15px', fontSize: '13px' }}>
+                {resetError}
+              </div>
+            )}
             <button 
               type="button" 
               onClick={() => {
@@ -143,15 +365,23 @@ const Login = ({ onLogin }) => {
                 setResetMessage('');
                 setResetError('');
               }}
-              style={{ background: 'none', color: '#666', marginTop: '10px', border: 'none', cursor: 'pointer' }}
+              style={{ 
+                background: 'none', 
+                color: '#666', 
+                marginTop: '15px', 
+                border: 'none', 
+                cursor: 'pointer', 
+                width: '100%',
+                fontSize: '13px'
+              }}
             >
               Back to Login
             </button>
           </form>
         ) : (
           <form onSubmit={handleResetPassword}>
-            <h3>Create New Password</h3>
-            <p style={{ fontSize: '12px', marginBottom: '15px' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '15px' }}>Create New Password</h3>
+            <p style={{ fontSize: '13px', marginBottom: '20px', textAlign: 'center', color: '#666' }}>
               Enter your reset code and new password
             </p>
             <input
@@ -160,6 +390,15 @@ const Login = ({ onLogin }) => {
               value={resetToken}
               onChange={(e) => setResetToken(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box'
+              }}
             />
             <input
               type="password"
@@ -167,6 +406,15 @@ const Login = ({ onLogin }) => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box'
+              }}
             />
             <input
               type="password"
@@ -174,10 +422,42 @@ const Login = ({ onLogin }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                marginBottom: '15px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '16px',
+                boxSizing: 'border-box'
+              }}
             />
-            <button type="submit">Reset Password</button>
-            {resetMessage && <div className="success">{resetMessage}</div>}
-            {resetError && <div className="error">{resetError}</div>}
+            <button 
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#27ae60',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Reset Password
+            </button>
+            {resetMessage && (
+              <div style={{ color: '#27ae60', textAlign: 'center', marginTop: '15px', fontSize: '13px' }}>
+                {resetMessage}
+              </div>
+            )}
+            {resetError && (
+              <div style={{ color: '#e74c3c', textAlign: 'center', marginTop: '15px', fontSize: '13px' }}>
+                {resetError}
+              </div>
+            )}
             <button 
               type="button" 
               onClick={() => {
@@ -185,13 +465,37 @@ const Login = ({ onLogin }) => {
                 setResetMessage('');
                 setResetError('');
               }}
-              style={{ background: 'none', color: '#666', marginTop: '10px', border: 'none', cursor: 'pointer' }}
+              style={{ 
+                background: 'none', 
+                color: '#666', 
+                marginTop: '15px', 
+                border: 'none', 
+                cursor: 'pointer', 
+                width: '100%',
+                fontSize: '13px'
+              }}
             >
               Back
             </button>
           </form>
         )}
       </div>
+
+      {/* CSS Animations */}
+      <style>
+        {`
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };
